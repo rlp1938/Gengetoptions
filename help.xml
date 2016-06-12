@@ -1,0 +1,19 @@
+<OPTION>
+<comment>
+	Just write all text between text tags.
+</comment>
+<text>
+	<name>HELP</name>
+	<shortname>h</shortname>
+	<longname>help</longname>
+	<variable></variable>
+	<optarg>0</optarg>
+	<code> dohelp(0);
+	</code>
+	<helptext>
+
+		Print this message and exit.
+
+	</helptext>
+</text>
+</OPTION>

@@ -1,0 +1,24 @@
+<OPTION>
+<comment>
+	This a format statement
+</comment>
+<text>
+	<name>%s</name> /* this name is documentation only */
+	<shortname>%s</shortname>
+	<longname>%s</longname>
+	<variable>
+		/* If there is no option variable delete all between variable
+		tags */
+		<name></name>
+		<type></type>
+		<default></default>
+	</variable>
+	<code></code>
+	<optarg>0</optarg>
+	<helptext>
+
+		Insert the help text here.
+
+	</helptext>
+</text>
+</OPTION>

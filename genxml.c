@@ -20,11 +20,87 @@
 
 
 #include "fileops.h"
+#include "stringops.h"
 
+char *helptext =
+  "\tSYNOPSIS\n"
+  "\tgenxml xmlfilename\n"
+  "\tWhen run without options, initialises xmlfilename with -h option\n"
+  "\tprocessing.\n\n"
+  "\tgenxml -a OPTNAME,shortname,longname xmlfilename\n"
+  "\tAdds a skeleton options section to xmlfilename, initialised with\n"
+  "OPTNAME, shortname and longname. Shortname, longname may be \"\"\n"
+  "\tbut not both. xmlfilename must exist.\n"
+  "\t-h\tPrints help message then exits.\n"
+  ;
+
+static void dohelp(int forced);
+static void writeinitial(const char *fn);
+static void writeadd(const char *fn);
+static void writeclose(const char *fn);
 
 int main(int argc, char **argv)
 {
+	// defaults
+	int add = 0;
+	int cls = 0;
+	int init = 1;
+	int opt;
+	// options
+	char *myoptstring = ":ha:c";
+	while ((opt = getopt(argc, argv, myoptstring)) != -1) {
+		switch(opt) {
+		case 'h':
+		dohelp(0);
+		break;
+		case 'a':
+		add = 1;
+		init = 0;
+		break;
+		case 'c':
+		cls = 1;
+		init = 0;
+		break;
+		case ':':
+		fprintf(stderr, "Option %s requires an argument\n",
+                argv[optind]);
+        dohelp(1);
+		break;
+		case '?':
+		fprintf(stderr, "Unknown option: %s\n",
+				argv[optind]);
+        dohelp(1);
+		break;
+		}
+	}
 
+	char *fn = argv[optind];
+	if (init) {
+		writeinitial(fn)
+	} else if (add) {
+		writeadd(fn);
+	} else if (cls) {
+		writecls(fn);
+	}
 	return 0;
 }
+
+void dohelp(int forced)
+{
+	fputs(helptext, stdout);
+	exit(forced);
+} // dohelp()
+
+void writeinitial(const char *fn)
+{
+	fdat mydat = readfile("~/.config/gengetoptions/help.xml");
+} // writeinitial()
+
+void writeadd(const char *fn)
+{
+} // writeadd()
+
+void writeclose(const char *fn)
+{
+} // writeclose()
 
