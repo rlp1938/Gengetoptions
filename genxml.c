@@ -36,8 +36,10 @@ char *helptext =
 
 static void dohelp(int forced);
 static void writeinitial(const char *fn);
-static void writeadd(const char *fn);
-static void writeclose(const char *fn);
+static void writeadd(const char *fn, char *addargs);
+static void writeclose(const char *fn, char *addargs);
+static void splitaddargs(char * addargs, char *name, char *sn,
+							char *ln);
 
 int main(int argc, char **argv)
 {
@@ -46,8 +48,9 @@ int main(int argc, char **argv)
 	int cls = 0;
 	int init = 1;
 	int opt;
+	char addargs[NAME_MAX];
 	// options
-	char *myoptstring = ":ha:c";
+	char *myoptstring = ":ha:c:";
 	while ((opt = getopt(argc, argv, myoptstring)) != -1) {
 		switch(opt) {
 		case 'h':
@@ -56,10 +59,12 @@ int main(int argc, char **argv)
 		case 'a':
 		add = 1;
 		init = 0;
+		strcpy(addargs, optarg);
 		break;
 		case 'c':
 		cls = 1;
 		init = 0;
+		strcpy(addargs, optarg);
 		break;
 		case ':':
 		fprintf(stderr, "Option %s requires an argument\n",
@@ -76,11 +81,11 @@ int main(int argc, char **argv)
 
 	char *fn = argv[optind];
 	if (init) {
-		writeinitial(fn)
+		writeinitial(fn);
 	} else if (add) {
-		writeadd(fn);
+		writeadd(fn, addargs);
 	} else if (cls) {
-		writecls(fn);
+		writeclose(fn, addargs);
 	}
 	return 0;
 }
@@ -92,15 +97,65 @@ void dohelp(int forced)
 } // dohelp()
 
 void writeinitial(const char *fn)
-{
-	fdat mydat = readfile("~/.config/gengetoptions/help.xml");
+{	/* "~/anything" always bombs "no such file" */
+	char *opntag = "<options>";
+	fdata mydat = readfile(get_realpath_home(
+	"~/.config/gengetoptions/help.xml"), 0, 1);
+	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
+	writefile(fn, opntag, opntag+strlen(opntag), "w");
+	writefile(fn, sd.from, sd.to, "a");
+	free(mydat.from);
 } // writeinitial()
 
-void writeadd(const char *fn)
-{
+void writeadd(const char *fn, char *addargs)
+{	/* "~/anything" always bombs "no such file" */
+	if ((fileexists(fn) == -1)) {
+		fprintf(stderr, "No such file: %s\n", fn);
+		exit(EXIT_FAILURE);
+	}
+	fdata mydat = readfile(get_realpath_home(
+	"~/.config/gengetoptions/add.xml"), 0, 1);
+	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
+	*sd.to = '\0';	// sd.from now a C string.
+	char name[NAME_MAX], sn[NAME_MAX], ln[NAME_MAX];
+	splitaddargs(addargs, name, sn, ln);
+	char buf[PATH_MAX];
+	sprintf(buf, sd.from, name, sn, ln);
+	writefile(fn, buf, buf + strlen(buf), "a");
+	free(mydat.from);
 } // writeadd()
 
-void writeclose(const char *fn)
+void writeclose(const char *fn, char* addargs)
 {
+	writeadd(fn, addargs);
+	char *endtag = "</options>\n";
+	writefile(fn, endtag, endtag+strlen(endtag), "a");
 } // writeclose()
 
+void splitaddargs(char * addargs, char *name, char *sn,	char *ln)
+{
+	char buf[NAME_MAX];
+	strcpy(buf, addargs);	// preserve addargs
+	char *cp = strchr(buf, ',');
+	if (!cp) {
+		fprintf(stderr, "No separator found: %s\n", buf);
+		exit(EXIT_FAILURE);
+	}
+	*cp = '\0';
+	strcpy(name, buf);
+	char *nxtarg = cp + 1;
+	cp = strchr(nxtarg, ',');
+	if (!cp) {
+		fprintf(stderr, "No separator found: %s\n", nxtarg);
+		exit(EXIT_FAILURE);
+	}
+	*cp = '\0';
+	strcpy(sn, nxtarg);
+	nxtarg = cp + 1;
+	strcpy(ln, nxtarg);
+	if (strlen(sn) == 0 && strlen(ln) == 0){
+		fprintf(stderr, "Both long and short names are 0 length: %s\n",
+				addargs);
+		exit(EXIT_FAILURE);
+	}
+} // splitaddargs()

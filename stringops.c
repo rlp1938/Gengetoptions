@@ -43,3 +43,24 @@ char *getcfgvalue(const char *cfgname, char **cfglines)
 	fprintf(stderr, "No parameter name: %s\n", cfgname);
 	exit(EXIT_FAILURE);
 } // getcfgvalue()
+
+strdata getdatafromtagnames(char *fro, char *to, char *tagname)
+{
+	char tagfro[NAME_MAX], tagto[NAME_MAX];
+	sprintf(tagfro, "<%s>", tagname);
+	sprintf(tagto, "</%s>", tagname);
+	strdata sd;
+	sd.from = memmem(fro, to - fro, tagfro, strlen(tagfro));
+	if (!sd.from) {
+		fprintf(stderr, "Tag not found: %s", tagfro);
+		exit(EXIT_FAILURE);
+	}
+	sd.from += strlen(tagfro);	// point to actual data
+	sd.to = memmem(sd.from, to - sd.from, tagto,
+							strlen(tagto));
+	if (!sd.to) {
+		fprintf(stderr, "Tag not found: %s", tagto);
+		exit(EXIT_FAILURE);
+	}
+	return sd;
+} // getdatafromtagnames()

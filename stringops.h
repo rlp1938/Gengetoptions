@@ -39,6 +39,13 @@
 
 #define _GNU_SOURCE 1
 
+typedef struct sdata {
+	char *from;
+	char *to;
+} strdata;
+
+
 char *dostrdup(const char *str);
 char *getcfgvalue(const char *cfgname, char **cfglines);
+strdata getdatafromtagnames(char *fro, char *to, char *tagname);
 #endif

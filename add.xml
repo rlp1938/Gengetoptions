@@ -6,7 +6,7 @@
 	<name>%s</name> /* this name is documentation only */
 	<shortname>%s</shortname>
 	<longname>%s</longname>
-	<variable>
+	<variable> /* the variable group may be repeated adlib */
 		/* If there is no option variable delete all between variable
 		tags */
 		<name></name>
