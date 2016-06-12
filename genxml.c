@@ -29,9 +29,16 @@ char *helptext =
   "\tprocessing.\n\n"
   "\tgenxml -a OPTNAME,shortname,longname xmlfilename\n"
   "\tAdds a skeleton options section to xmlfilename, initialised with\n"
-  "OPTNAME, shortname and longname. Shortname, longname may be \"\"\n"
+  "\tOPTNAME, shortname and longname. Shortname, longname may be \"\"\n"
   "\tbut not both. xmlfilename must exist.\n"
+  "\tOPTIONS\n"
   "\t-h\tPrints help message then exits.\n"
+  "\t-a\tRequires an optarg of the form, NAME,shortname,longname.\n"
+  "\t\tShortname or longname may be zero length but not both.\n"
+  "\t\tAppends an xml section to the named xml file. A non-existent\n"
+  "\t\txml file is an error.\n"
+  "\t-c\tDoes the same as -a but also adds the closing tag to the xml\n"
+  "\t\tfile.\n"
   ;
 
 static void dohelp(int forced);
