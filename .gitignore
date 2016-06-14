@@ -16,3 +16,5 @@
 /stamp-h1
 /test*
 /nooptim.sh
+/experiment*
+/optgen
