@@ -9,7 +9,7 @@
 	<variable> /* the variable group may be repeated adlib */
 		/* If there is no option variable delete all between variable
 		tags */
-		<name></name>
+		<vname></vname>
 		<type></type>
 		<default></default>
 	</variable>

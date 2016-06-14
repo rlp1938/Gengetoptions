@@ -11,9 +11,7 @@
 	<code> dohelp(0);
 	</code>
 	<helptext>
-
-		Print this message and exit.
-
+	Print this message and exit.
 	</helptext>
 </text>
 </OPTION>
