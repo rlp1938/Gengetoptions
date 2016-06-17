@@ -19,7 +19,7 @@
 */
 
 #include "stringops.h"
-
+#include "fileops.h"
 char *dostrdup(const char *str)
 {	/* strdup() with error handling */
 	char *dup = strdup(str);

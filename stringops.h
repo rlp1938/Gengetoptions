@@ -36,8 +36,11 @@
 #include <libgen.h>
 #include <errno.h>
 #include <utime.h>
+#include <time.h>
 
 #define _GNU_SOURCE 1
+
+#include "fileops.h"
 
 typedef struct sdata {
 	char *from;
@@ -48,4 +51,5 @@ typedef struct sdata {
 char *dostrdup(const char *str);
 char *getcfgvalue(const char *cfgname, char **cfglines);
 strdata getdatafromtagnames(char *fro, char *to, char *tagname);
+
 #endif
