@@ -52,7 +52,19 @@ static char *getdatabytag(const char *opn, const char *cls,
 							char *fro, char *to);
 static void getoptsdata(char *fro, char *to, opts *optdat);
 static void tagerror(const char *tag);
-
+static void init3files(char *xmlfile);
+static char *getthisyear(void);
+static void writeinitfile(const char *fn, const char *user,
+							const char *yy, const char *email,
+							const char *vline1, const char *vline2,
+							const char *vline3, const char *fmt);
+static char *cfilefromxml(char *xmlfile);
+static void makevarstruct(const char *optheader, vars  vs[],
+							const int nvs);
+static void initoptstring(const char *optsfile, opts od[],
+							const int ocount);
+static void setovdefaults(const char *optsfile, vars  vs[],
+							const int nvs);
 
 int main(int argc, char **argv)
 {
@@ -79,8 +91,8 @@ int main(int argc, char **argv)
 		break;
 		} //switch()
 	}//while()
-
-	fdata mydat = readfile(argv[optind], 0, 1);
+	char *xmlfile = argv[optind];
+	fdata mydat = readfile(xmlfile, 0, 1);
 	int vcount = counttags(mydat.from, mydat.to, "<vname>");
 	int ocount = counttags(mydat.from, mydat.to, "<name>");
 	opts od[ocount];
@@ -96,8 +108,15 @@ int main(int argc, char **argv)
 	for (i = 0; i < ocount; i++) {
 		getoptsdata(otaglist[i], mydat.to, &od[i]);
 	}
-
-
+	/* data gathering complete. Write the page tops for the C code with
+	 * a main(), gopt.h|c
+	*/
+	init3files(xmlfile);
+	makevarstruct("gopt.h", vdat, vcount);
+	char *hend = "\n#endif\n";
+	writefile("gopt.h", hend, NULL, "a");	// gopt.h done.
+	initoptstring("gopt.c", od, ocount);
+	setovdefaults("gopt.c", vdat, vcount);
 	return 0;
 }//main()
 
@@ -183,4 +202,134 @@ char *getdatabytag(const char *opn, const char *cls, char *fro,
 	if(buf[dlen-1] == '	') buf[dlen-1] = '\0';;
 	return buf;
 } // getvardatabytag()
+
+void init3files(char *xmlfile)
+{	/* gopt.h, gopt.c and if xmlfile is test.xml the third is test.c */
+	char *yy = getthisyear();
+	char **cfg = readcfg("~/.config/gengetoptions/ggoconfig");
+	char *user = getcfgvalue("user", cfg);
+	char *email = getcfgvalue("email", cfg);
+	free(cfg);
+	char *pt = get_realpath_home("~/.config/gengetoptions/pagetop.xml");
+	fdata mydat = readfile(pt, 0, 1);
+	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
+	*sd.to = '\0';	// now a C string format statement.
+	char *hl1 = "#ifndef GOPT_H";
+	char *hl2 = "#define GOPT_H";
+	writeinitfile("gopt.h", user, yy, email, hl1, hl2,
+					"char *opstring;", sd.from);
+	hl1 = "#include \"fileops.h\"";
+	hl2 = "#include \"stringops.h\"";
+	writeinitfile("gopt.c", user, yy, email, hl1, hl2,
+					"#include \"gopt.h\"", sd.from);
+	char *mainprog = cfilefromxml(xmlfile);
+	writeinitfile(mainprog, user, yy, email, hl1, hl2,
+					"#include \"gopt.h\"", sd.from);
+} // init3files()
+
+char *getthisyear(void)
+{
+	time_t now;
+	struct tm *tp;
+	now = time (NULL);
+	static char yy[5];
+/*	tp = localtime(&now);
+	sprintf(yy, "%d", tp->tm_year);
+	return yy;
+	* This is just so fucked up! yy gets the value 116!
+	* my work around below.
+*/
+	double secsyr = 365.25 * 24 * 60 *60;
+	int yr = now / secsyr + 1970;
+	sprintf(yy, "%d", yr);
+	return yy;	// 2016 when written.
+} // getthisyear()
+
+void writeinitfile(const char *fn, const char *user,
+					const char *yy, const char *email,
+					const char *vline1, const char *vline2,
+					const char *vline3, const char *fmt)
+{
+	FILE *fpo = dofopen(fn, "w");
+	fprintf(fpo, fmt, fn, user, yy, email, vline1,
+				vline2, vline3);
+	dofclose(fpo);
+} // writeinitfile()
+
+static char *cfilefromxml(char *xmlfile)
+{
+	static char buf[NAME_MAX];
+	strcpy(buf, xmlfile);
+	char *cp = strstr(xmlfile, ".xml");
+	*cp = '\0';
+	strcat(buf, ".c");
+	return buf;
+} // cfilefromxml()
+
+void makevarstruct(const char *optheader, vars vs[], const int nvs)
+{
+	int i;
+	vars localvs;
+	char buf[PATH_MAX];
+	strcpy(buf, "typedef struct ops {\n");
+	for (i = 0; i < nvs; i++) {
+		localvs = vs[i];
+		char line[NAME_MAX];
+		sprintf(line, "%s %s;\n", localvs.type, localvs.vname);
+		strcat(buf, line);
+	}
+	strcat(buf, "} opts;\n");
+	writefile(optheader, buf, buf + strlen(buf), "a");
+} // makevarstruct()
+
+void initoptstring(const char *optsfile, opts od[], const int ocount)
+{
+	char retbuf[NAME_MAX], wrkbuf[NAME_MAX];
+	wrkbuf[0] = '\0';
+	int i;
+	strcpy(retbuf, "\n\toptstring = ");
+	opts localopt;
+	for (i = 0; i < ocount; i++) {
+		localopt = od[i];
+		if (strlen(localopt.shortname)) {
+			strcat(wrkbuf, localopt.shortname);
+			if (strcmp(localopt.optarg, "1") == 0) {
+				strcat(wrkbuf, ":");
+			}
+		} // if()
+	} // for()
+	if (strlen(wrkbuf)) { // no short options at all is possible
+		strcat(retbuf, ":");
+		strcat(retbuf, wrkbuf);
+	} else {
+		strcat(retbuf, "\"\""); // man 3 getopt
+	}
+	strcat(retbuf, ";\n");
+	writefile(optsfile, retbuf, NULL, "a");
+} // initoptstring()
+
+void setovdefaults(const char *optsfile, vars  vs[], const int nvs)
+{
+	char buf[PATH_MAX];
+	strcpy(buf, "\n\t/* set up defaults for opt vars. */\n");
+	strcat(buf, "\topts os;\n");
+	int ival;
+	int i;
+	for (i = 0; i < nvs; i++) {
+		vars localvs = vs[i];
+		char line[NAME_MAX];
+		if (strcmp(localvs.type, "int") == 0) {
+			ival = strtol(localvs.deflt, NULL, 10);
+			sprintf(line, "\tos.%s = %d;\n", localvs.vname, ival);
+		} else if (strcmp(localvs.type, "char *") == 0) {
+			sprintf(line, "\tos.%s = dostrdup(%s);\n", localvs.vname,
+						localvs.deflt);
+		} else {
+			sprintf(line, "\tos.%s = /* FIXME */%s;\n", localvs.vname,
+						localvs.deflt);
+		}
+		strcat(buf, line);
+	} // for()
+	writefile(optsfile, buf, NULL, "a");
+} // setovdefaults()
 
