@@ -53,7 +53,7 @@ FILE *dofopen(const char *fn, const char *fmode)
 	return fpx;
 } // dofopen()
 
-void writefile(const char *to_write, const char *from, const char *to,
+void writefile(const char *to_write, char *from, char *to,
 				const char *mode)
 {
 	int ofd;
@@ -62,6 +62,8 @@ void writefile(const char *to_write, const char *from, const char *to,
 	} else {
 		ofd = doopen(to_write, mode);
 	}
+	// give caller choice of entering NULL for to when from is a string
+	if (!to) to = from + strlen(from);
 	ssize_t towrite = to - from;
 	ssize_t written = write(ofd, from, towrite);
 	if (written != towrite) {

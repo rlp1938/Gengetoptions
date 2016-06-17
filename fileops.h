@@ -71,7 +71,7 @@ void *docalloc(size_t nmemb, size_t size, const char *func);
 fdata readtextfile(const char *filename, off_t extra, int fatal);
 fdata readfile(const char *filename, off_t extra, int fatal);
 fdata readpseudofile(const char *path, off_t extra);
-void writefile(const char *to_write, const char *from, const char *to,
+void writefile(const char *to_write, char *from, char *to,
 				const char *mode);
 size_t count_file_bytes(const char *path);
 
