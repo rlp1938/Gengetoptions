@@ -4,3 +4,4 @@
 cp add.xml ~/.config/gengetoptions/
 cp help.xml ~/.config/gengetoptions/
 cp ggoconfig ~/.config/gengetoptions/
+cp pagetop.xml ~/.config/gengetoptions/
