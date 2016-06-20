@@ -5,3 +5,5 @@ cp add.xml ~/.config/gengetoptions/
 cp help.xml ~/.config/gengetoptions/
 cp ggoconfig ~/.config/gengetoptions/
 cp pagetop.xml ~/.config/gengetoptions/
+cp gopt_c2.xml ~/.config/gengetoptions/
+cp gopt_c3.xml ~/.config/gengetoptions/

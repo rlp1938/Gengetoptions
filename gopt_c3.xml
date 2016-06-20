@@ -1,0 +1,13 @@
+<comment>
+	Append data between "text" tags into gopt.c verbatim
+</comment>
+<text>
+
+		c = getopt_long(argc, argv, optstring,
+                        long_options, &option_index);
+
+		if (c == -1)
+			break;
+
+		switch (c) {
+</text>
