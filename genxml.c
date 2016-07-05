@@ -109,7 +109,7 @@ void writeinitial(const char *fn)
 	fdata mydat = readfile(get_realpath_home(
 	"~/.config/gengetoptions/help.xml"), 0, 1);
 	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
-	writefile(fn, opntag, opntag+strlen(opntag), "w");
+	writefile(fn, opntag, NULL, "w");
 	writefile(fn, sd.from, sd.to, "a");
 	free(mydat.from);
 } // writeinitial()
@@ -128,7 +128,7 @@ void writeadd(const char *fn, char *addargs)
 	splitaddargs(addargs, name, sn, ln);
 	char buf[PATH_MAX];
 	sprintf(buf, sd.from, name, sn, ln);
-	writefile(fn, buf, buf + strlen(buf), "a");
+	writefile(fn, buf, NULL, "a");
 	free(mydat.from);
 } // writeadd()
 
@@ -136,7 +136,7 @@ void writeclose(const char *fn, char* addargs)
 {
 	writeadd(fn, addargs);
 	char *endtag = "</options>\n";
-	writefile(fn, endtag, endtag+strlen(endtag), "a");
+	writefile(fn, endtag, NULL, "a");
 } // writeclose()
 
 void splitaddargs(char * addargs, char *name, char *sn,	char *ln)

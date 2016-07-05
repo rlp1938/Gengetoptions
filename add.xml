@@ -6,17 +6,36 @@
 	<name>%s</name> /* this name is documentation only */
 	<shortname>%s</shortname>
 	<longname>%s</longname>
-	<variable> /* the variable group may be repeated adlib */
-		/* If there is no option variable delete all between variable
-		tags */
+	/* repeat for as many optvariables needed for option.
+		If there is to be no optvariable delete
+		everything between the opening and closing tag.
+		If the variable is part of the options_t struct, prefix the
+		vname with 'opts.'
+	*/
+	<optvariable>
 		<vname></vname>
 		<type></type>
-		<default></default>
-	</variable>
-	<code></code>
+	/* Always just type C code between 'default' tag pairs
+	   Format with tabs as required to place the code where you want in
+	   the resulting C program.
+	   The variable name must be prefixed with 'opts.'
+	*/
+<default>
+</default>
+	</optvariable>
+
+	/* Always just type C code between 'code' tag pairs as many
+	   lines as neeeded.
+	   Format with tabs as required to place the code where you want in
+	   the resulting C program.
+	   If you are coding options_t vars, the names must be prefixed with
+	   'opts.'
+	*/
+<code>
+</code>
 	<optarg>0</optarg>
-	<helptext>
+<helptext>
 	Insert the help text here.
-	</helptext>
+</helptext>
 </text>
 </OPTION>

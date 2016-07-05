@@ -19,9 +19,11 @@
  *	MA 02110-1301, USA.
 */
 
-
 #include "fileops.h"
 #include "stringops.h"
+#define PAGE PATH_MAX
+#define LINE NAME_MAX
+
 
 char *helpmsg = "\n\tUsage: untitled [option] file or dir\n"
   "\n\tOptions:\n"
@@ -29,28 +31,36 @@ char *helpmsg = "\n\tUsage: untitled [option] file or dir\n"
   "\t-???\n"
   ;
 
-typedef struct {
+typedef struct options_t {
 	char *shortname;
 	char *longname;
 	char *optarg;
 	char *helptext;
 	char *code;
-} opts;
+} options_t;
 
-typedef struct {
+typedef struct vars {
 	char *vname;
 	char *type;
 	char *deflt;
 } vars;
+
+typedef struct govars_t {	// vars local to gopt.c
+	char *gname;
+	char *type;
+	char *deflt;
+} govars_t;
 
 static void dohelp(int forced);
 static int counttags(char *fro, char *to, const char *tag);
 static void gettagaddress(const char *tag, char *fro, char *to,
 							char *list[]);
 static void getvarsdata(char *fro, char *to, vars *vardat);
+static void getgvsdata(char *fro, char *to, govars_t *gvsdat);
+
 static char *getdatabytag(const char *opn, const char *cls,
 							char *fro, char *to);
-static void getoptsdata(char *fro, char *to, opts *optdat);
+static void getoptsdata(char *fro, char *to, options_t *optdat);
 static void tagerror(const char *tag);
 static void init3files(char *xmlfile);
 static char *getthisyear(void);
@@ -61,10 +71,28 @@ static void writeinitfile(const char *fn, const char *user,
 static char *cfilefromxml(char *xmlfile);
 static void makevarstruct(const char *optheader, vars  vs[],
 							const int nvs);
-static void initoptstring(const char *optsfile, opts od[],
+static void initoptstring(const char *optsfile, options_t opts[],
 							const int ocount);
 static void setovdefaults(const char *optsfile, vars  vs[],
 							const int nvs);
+static void setgvsdefaults(const char *optsfile, govars_t  gvs[],
+							const int ngs);
+static void writefixeddata(const char *optsfile, const char *datafile);
+static void writelongoptlines(const char *optsfile, options_t opts[],
+							const int ocount);
+static void writeoptionsprocessing(const char *optsfile,
+									options_t opts[],
+							const int ocount);
+static void gatherhelptext(const char *optsfile, options_t opts[],
+							const int ocount);
+static char *formathelplines(char *raw);
+static void writelongoptions(const char *optsfile, options_t opts[],
+								const int ocount);
+static void writeshortoptions(const char *optsfile, options_t opts[],
+								const int ocount);
+static void stripspace_r(char *stripfrom, char *result);
+static void reformatcode(char *existing, char *new, int nrtabs);
+static void bufferguard(const char *buf, const char *where);
 
 int main(int argc, char **argv)
 {
@@ -93,30 +121,48 @@ int main(int argc, char **argv)
 	}//while()
 	char *xmlfile = argv[optind];
 	fdata mydat = readfile(xmlfile, 0, 1);
+	int gcount = counttags(mydat.from, mydat.to, "<gname>");
 	int vcount = counttags(mydat.from, mydat.to, "<vname>");
 	int ocount = counttags(mydat.from, mydat.to, "<name>");
-	opts od[ocount];
+
+	govars_t gvs[gcount];
+	options_t opts[ocount];
 	vars vdat[vcount];
+
+	char *gtaglist[gcount];
+	gettagaddress("<gname>", mydat.from, mydat.to, gtaglist);
 	char *vtaglist[vcount];
 	gettagaddress("<vname>", mydat.from, mydat.to, vtaglist);
 	char *otaglist[ocount];
 	gettagaddress("<name>", mydat.from, mydat.to, otaglist);
 	int i;
+	for (i = 0; i < gcount; i++) {
+		getgvsdata(gtaglist[i], mydat.to, &gvs[i]);
+	}
 	for (i = 0; i < vcount; i++) {
 		getvarsdata(vtaglist[i], mydat.to, &vdat[i]);
 	}
 	for (i = 0; i < ocount; i++) {
-		getoptsdata(otaglist[i], mydat.to, &od[i]);
+		getoptsdata(otaglist[i], mydat.to, &opts[i]);
 	}
 	/* data gathering complete. Write the page tops for the C code with
 	 * a main(), gopt.h|c
 	*/
 	init3files(xmlfile);
 	makevarstruct("gopt.h", vdat, vcount);
-	char *hend = "\n#endif\n";
+	writefixeddata("gopt.h", "~/.config/gengetoptions/gopt_h1.xml");
+	char *hend = "#endif\n";
 	writefile("gopt.h", hend, NULL, "a");	// gopt.h done.
-	initoptstring("gopt.c", od, ocount);
+	writefixeddata("gopt.c", "~/.config/gengetoptions/gopt_c1.xml");
+	gatherhelptext("gopt.c",  opts, ocount);
+	initoptstring("gopt.c", opts, ocount);
+	setgvsdefaults("gopt.c", gvs, gcount);
 	setovdefaults("gopt.c", vdat, vcount);
+	writefixeddata("gopt.c", "~/.config/gengetoptions/gopt_c2.xml");
+	writelongoptlines("gopt.c", opts, ocount);
+	writefixeddata("gopt.c", "~/.config/gengetoptions/gopt_c3.xml");
+	writeoptionsprocessing("gopt.c", opts, ocount);
+	writefixeddata("gopt.c", "~/.config/gengetoptions/gopt_c4.xml");
 	return 0;
 }//main()
 
@@ -155,6 +201,16 @@ void gettagaddress(const char *tag, char *fro, char *to, char *list[])
 
 } // gettagaddress()
 
+void getgvsdata(char *fro, char *to, govars_t *gvsdat)
+{	// I know the tag names.
+	char *res = getdatabytag("<gname>", "</gname>", fro, to);
+	gvsdat->gname = dostrdup(res);
+	res = getdatabytag("<type>", "</type>", fro, to);
+	gvsdat->type = dostrdup(res);
+	res = getdatabytag("<default>", "</default>", fro, to);
+	gvsdat->deflt = dostrdup(res);
+} // getgvsdata()
+
 void getvarsdata(char *fro, char *to, vars *vardat)
 {	// I know the tag names.
 	char *res = getdatabytag("<vname>", "</vname>", fro, to);
@@ -165,7 +221,7 @@ void getvarsdata(char *fro, char *to, vars *vardat)
 	vardat->deflt = dostrdup(res);
 } // getvarsdata()
 
-void getoptsdata(char *fro, char *to, opts *optdat)
+void getoptsdata(char *fro, char *to, options_t *optdat)
 {	// tags: shortname, longname, code, optarg, helptext
 	char *res = getdatabytag("<shortname>", "</shortname>", fro, to);
 	optdat->shortname = dostrdup(res);
@@ -188,7 +244,8 @@ void tagerror(const char *tag)
 char *getdatabytag(const char *opn, const char *cls, char *fro,
 						char *to)
 {
-	static char buf[PATH_MAX];	// useable for opts as well as vars
+	static char buf[PAGE];	// useable for options_t as well as vars
+	char wrk [PAGE];
 	size_t len = strlen(opn);
 	char *cp = fro;	// begin all searches from the top of the group.
 	cp = memmem(cp, to - cp, opn, len);
@@ -197,11 +254,14 @@ char *getdatabytag(const char *opn, const char *cls, char *fro,
 	char *clcp = memmem(cp, to - cp, cls, len+1);
 	if(!clcp) tagerror(cls);
 	size_t dlen = clcp - cp;
-	strncpy(buf, cp, dlen);
-	buf[dlen] = '\0';
-	if(buf[dlen-1] == '	') buf[dlen-1] = '\0';;
+	strncpy(wrk, cp, dlen);
+	wrk[dlen] = '\0';	// get rid of any trailing tab
+	if(wrk[dlen-1] == '\t') wrk[dlen-1] = '\0';
+	char *wp = wrk;
+	while(*wp == '\n') wp++;	// remove leading '\n' but keep '\t'.
+	strcpy(buf, wp);
 	return buf;
-} // getvardatabytag()
+} // getdatabytag()
 
 void init3files(char *xmlfile)
 {	/* gopt.h, gopt.c and if xmlfile is test.xml the third is test.c */
@@ -233,16 +293,9 @@ char *getthisyear(void)
 	struct tm *tp;
 	now = time (NULL);
 	static char yy[5];
-/*	tp = localtime(&now);
-	sprintf(yy, "%d", tp->tm_year);
+	tp = localtime(&now);
+	sprintf(yy, "%d", tp->tm_year + 1900);
 	return yy;
-	* This is just so fucked up! yy gets the value 116!
-	* my work around below.
-*/
-	double secsyr = 365.25 * 24 * 60 *60;
-	int yr = now / secsyr + 1970;
-	sprintf(yy, "%d", yr);
-	return yy;	// 2016 when written.
 } // getthisyear()
 
 void writeinitfile(const char *fn, const char *user,
@@ -258,7 +311,7 @@ void writeinitfile(const char *fn, const char *user,
 
 static char *cfilefromxml(char *xmlfile)
 {
-	static char buf[NAME_MAX];
+	static char buf[LINE];
 	strcpy(buf, xmlfile);
 	char *cp = strstr(xmlfile, ".xml");
 	*cp = '\0';
@@ -270,27 +323,29 @@ void makevarstruct(const char *optheader, vars vs[], const int nvs)
 {
 	int i;
 	vars localvs;
-	char buf[PATH_MAX];
-	strcpy(buf, "typedef struct ops {\n");
+	char buf[PAGE];
+	strcpy(buf, "typedef struct opsruct {\n");
 	for (i = 0; i < nvs; i++) {
 		localvs = vs[i];
-		char line[NAME_MAX];
+		char line[LINE];
 		sprintf(line, "%s %s;\n", localvs.type, localvs.vname);
 		strcat(buf, line);
 	}
-	strcat(buf, "} opts;\n");
+	strcat(buf, "} options_t;\n");
+	bufferguard(buf, "makevarstruct");
 	writefile(optheader, buf, buf + strlen(buf), "a");
 } // makevarstruct()
 
-void initoptstring(const char *optsfile, opts od[], const int ocount)
+void initoptstring(const char *optsfile, options_t opts[],
+						const int ocount)
 {
-	char retbuf[NAME_MAX], wrkbuf[NAME_MAX];
+	char retbuf[PAGE], wrkbuf[PAGE];
 	wrkbuf[0] = '\0';
 	int i;
 	strcpy(retbuf, "\n\toptstring = ");
-	opts localopt;
+	options_t localopt;
 	for (i = 0; i < ocount; i++) {
-		localopt = od[i];
+		localopt = opts[i];
 		if (strlen(localopt.shortname)) {
 			strcat(wrkbuf, localopt.shortname);
 			if (strcmp(localopt.optarg, "1") == 0) {
@@ -305,31 +360,299 @@ void initoptstring(const char *optsfile, opts od[], const int ocount)
 		strcat(retbuf, "\"\""); // man 3 getopt
 	}
 	strcat(retbuf, ";\n");
+	bufferguard(retbuf, "initoptstring");
 	writefile(optsfile, retbuf, NULL, "a");
 } // initoptstring()
 
 void setovdefaults(const char *optsfile, vars  vs[], const int nvs)
 {
-	char buf[PATH_MAX];
+	char buf[PAGE];
 	strcpy(buf, "\n\t/* set up defaults for opt vars. */\n");
-	strcat(buf, "\topts os;\n");
-	int ival;
+	strcat(buf, "\toptions_t opts;\n");
 	int i;
 	for (i = 0; i < nvs; i++) {
 		vars localvs = vs[i];
-		char line[NAME_MAX];
-		if (strcmp(localvs.type, "int") == 0) {
-			ival = strtol(localvs.deflt, NULL, 10);
-			sprintf(line, "\tos.%s = %d;\n", localvs.vname, ival);
-		} else if (strcmp(localvs.type, "char *") == 0) {
-			sprintf(line, "\tos.%s = dostrdup(%s);\n", localvs.vname,
-						localvs.deflt);
-		} else {
-			sprintf(line, "\tos.%s = /* FIXME */%s;\n", localvs.vname,
-						localvs.deflt);
-		}
+		char wrk[LINE];
+		char line[LINE];
+		strcpy(wrk, localvs.deflt);
+		stripspace_r(wrk, wrk);
+		sprintf(line, "\t%s\n", wrk);
 		strcat(buf, line);
 	} // for()
+	bufferguard(buf, "setovdefaults");
 	writefile(optsfile, buf, NULL, "a");
 } // setovdefaults()
 
+void writefixeddata(const char *optsfile, const char *datafile)
+{
+	char *xmlfile = get_realpath_home(datafile);
+	fdata mydat = readfile(xmlfile, 0, 1);
+	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
+	writefile(optsfile, sd.from, sd.to, "a");
+} // writefixeddata()
+
+void writelongoptlines(const char *optsfile, options_t opts[],
+						const int ocount)
+{
+	char *fmt = "\t\t{\"%s\",\t%s,\t%s,\t%s },\n";
+	char buf[PAGE];
+	buf[0] = '\0';
+	options_t localopts;
+	int i;
+	for (i = 0; i < ocount; i++) {
+		char line[LINE];
+		localopts = opts[i];
+		if (strlen(localopts.longname)) {
+			char snbuf[8];
+			if (strlen(localopts.shortname)) {
+				strcpy(snbuf, "'");
+				strcat(snbuf, localopts.shortname);
+				strcat(snbuf, "'");
+			} else {
+				strcpy(snbuf, "0");
+			}
+			sprintf(line, fmt, localopts.longname, localopts.optarg,
+						"0", snbuf);
+		}
+		strcat(buf, line);
+	}
+	strcat(buf, "\t\t{0,\t0,\t0,\t0 }\n");
+	bufferguard(buf, "writelongoptlines");
+	writefile(optsfile, buf, NULL, "a");
+} // writelongoptlines()
+
+void writeoptionsprocessing(const char *optsfile, options_t opts[],
+							const int ocount)
+{
+	writelongoptions(optsfile, opts, ocount);
+	writeshortoptions(optsfile, opts, ocount);
+} // writeoptionsprocessing()
+
+static void gatherhelptext(const char *optsfile, options_t opts[],
+							const int ocount)
+{
+	char buf[PAGE];
+	int i;
+	options_t localopts;
+	buf[0] = '\0';
+	for (i = 0; i < ocount; i++) {
+		char line[PAGE];
+		localopts = opts[i];
+		char *helptext = formathelplines(localopts.helptext);
+		char *fmt;
+		if (strlen(localopts.shortname) && strlen(localopts.longname)) {
+			fmt = "  \"\\t-%s, --%s\\n\"\n%s";
+			sprintf(line, fmt, localopts.shortname, localopts.longname,
+					helptext);
+		} else if (strlen(localopts.shortname)) {
+			fmt = "  \"\\t-%s\\n\"\n\"%s\\n";
+			sprintf(line, fmt, localopts.shortname, helptext);
+		} else {
+			fmt = "  \"\\t--%s\\n\"\n\"%s\\n";
+			sprintf(line, fmt, localopts.longname, helptext);
+		}
+		strcat(buf, line);
+	}
+	strcat(buf, "  ;\n");
+	bufferguard(buf, "gatherhelptext");
+	writefile(optsfile, buf, NULL, "a");
+} // gatherhelptext()
+
+char *formathelplines(char *raw)
+{
+	static char buf1[PAGE];
+	char buf2[PAGE], buf3[PAGE];
+	const size_t linelen = 72;
+	strcpy(buf3, raw);
+	char *cp = buf3;
+	size_t ll = strlen(buf3);
+	char *ep = cp + ll -1;
+	while(isspace(*cp) && cp < ep) cp++;	// bye leading whitespace
+	while(isspace(*ep) && ep > cp) *ep = '\0'; // bye trailing ditto
+	strcpy(buf2, cp);
+	cp = buf2;
+	while (*cp != '\0') { // all whitespace becomes a simple ' '.
+		if(isspace(*cp)) *cp = ' ';
+		cp++;
+	}
+	int inspace = 0;
+	cp = buf2;
+	memset(buf3, 0, PAGE);	// guard against garbage data
+	ep = buf3;
+	while (*cp != '\0') { // reduce clusters of ' ' to 1 ' '.
+		if (inspace && *cp == ' ') {
+			cp++;	// no copy ' '
+		} else if (!inspace && *cp == ' ') {
+			inspace = 1;
+			*ep = *cp;	// copy this ' '
+			ep++; cp++;
+		} else {
+			inspace = 0;
+			*ep = *cp;
+			ep++; cp++;
+		}
+	} // while()
+	*ep = '\0';
+	ll = strlen(buf3);
+	buf1[0] = 0;
+	char *bol = "  \"\\t";
+	char *eol = "\\n\"\n";
+	while (ll > linelen) {
+		ep = buf3 + linelen - 1;
+		while(!isspace(*ep)) ep--;
+		// If user provides insane data he is welcome to the segfault.
+		*ep = '\0';
+		/* All that happens here is that bunches of words, 72 chars long
+		 * or less, and wrapped thus '  "\thelptext words... \n"'
+		 * are returned to the caller.
+		*/
+		strcat(buf1, bol);
+		strcat(buf1, buf3);
+		strcat(buf1, eol);	// a line to display
+		ep++;
+		strcpy(buf2, ep);	// make the next line ready
+		memset(buf3, 0, PAGE);
+		strcpy(buf3, buf2);
+		ll = strlen(buf3);
+	} // while(ll ..)
+	if (strlen(buf3)) {
+		strcat(buf1, bol);
+		strcat(buf1, buf3);
+		strcat(buf1, eol);
+	}
+	return buf1;
+} // formathelplines()
+
+void writelongoptions(const char *optsfile, options_t opts[],
+								const int ocount)
+{	/* In what follows I will be providing a case stub for each and
+	* every long option regardless of whether a corresponding short
+	* option exixts, without yet knowing if these stubs will even
+	* execute if there is a short option in place.
+	* Following on will be the case code for the short options.
+	* */
+	char buf[PAGE];
+	options_t localopts;
+	strcpy(buf, "\t\tcase 0:\n\t\t\tswitch (option_index) {\n");
+	int i;
+	for (i = 0; i < ocount; i++) {
+		localopts = opts[i];
+		char line[LINE];
+		if (strlen(localopts.shortname) == 0) {
+			sprintf(line, "\t\t\tcase %d:\n", i);
+			strcat(buf, line);
+			reformatcode(localopts.code, line, 1);
+			strcat(buf, line);
+			strcpy(line, "\t\t\tbreak;\n");
+			strcat(buf, line);
+		}
+	} // for()
+	strcat(buf, "\t\t\t} // switch()\n\t\tbreak;\n");
+	bufferguard(buf, "writelongoptions");
+	writefile(optsfile, buf, NULL, "a");
+} // writelongoptions()
+
+void writeshortoptions(const char *optsfile, options_t opts[],
+								const int ocount)
+{
+	char buf[PAGE];
+	buf[0] = '\0';
+	options_t localopts;
+	int i;
+	for (i = 0; i < ocount; i++) {
+		localopts = opts[i];
+		char line[LINE];
+		if (strlen(localopts.shortname)) {
+			sprintf(line, "\t\tcase '%s':\n", localopts.shortname);
+			strcat(buf, line);
+			reformatcode(localopts.code, line, 0);
+			strcat(buf, line);
+			strcpy(line, "\t\tbreak;\n");
+			strcat(buf, line);
+		}
+	} // for()
+	bufferguard(buf, "writeshortoptions");
+	writefile(optsfile, buf, NULL, "a");
+} // writeshortoptions()
+
+void setgvsdefaults(const char *optsfile, govars_t  gvs[],
+							const int ngs)
+{
+	char buf[PAGE];
+	int i;
+	// Write comment first
+	strcpy(buf, "\n\t/* declare and set defaults for local variables."
+				" */\n");
+	govars_t localgvs;
+	for (i = 0; i < ngs; i++) {
+		char line[LINE];
+		char *fmt = "\t%s %s\n\t%s\n";
+		localgvs = gvs[i];
+		char typ[LINE], gname[LINE], deflt[LINE];
+		stripspace_r(localgvs.type, typ);
+		stripspace_r(localgvs.gname, gname);
+		stripspace_r(localgvs.deflt, deflt);
+		sprintf(line, fmt, typ, gname, deflt);
+		strcat(buf, line);
+	}
+	bufferguard(buf, "setgvsdefaults");
+	writefile(optsfile, buf, NULL, "a");
+} // setgvsdefaults()
+
+void stripspace_r(char *stripfrom, char *result)
+{
+	char buf[PAGE];
+	strcpy(buf, stripfrom);
+	char *cp = buf;
+	char *ep;
+	size_t len = strlen(buf);
+	ep = cp + len - 1;
+	while(isspace(*cp) && cp < ep) cp++;
+	while(isspace(*ep) && ep > cp) {
+		*ep = 0;
+		ep--;
+	}
+	strcpy(result, cp);
+} // stripspace()
+
+void reformatcode(char *existing, char *new, int nrtabs)
+{	/* prepends nrtabs '\t' to each line of code */
+	char line[LINE];
+	char wrk[LINE];
+	char fivetabs[5];
+	strcpy(fivetabs, "\t\t\t\t\t");
+	fivetabs[nrtabs] = 0;
+	memset(wrk, 0, LINE);
+	line[0] = 0;
+	strcpy(wrk, existing);
+	char *le = wrk + strlen(wrk) - 1;
+	char *guard = le;
+	while (*le == '\t') le--;
+	*le = 0;	// get rid of extraneous tabs on the end
+	le = wrk;
+	char *cp = wrk;
+	while (1) {
+		while (*le != '\n' && le <= guard) le++;
+		*le = 0;
+		strcat(line, fivetabs);
+		strcat(line, cp);
+		strcat(line, "\n");
+		le++;
+		cp = le;
+		if (strlen(cp) == 0) break;
+	}
+	strcpy(new, line);
+} // reformatcode()
+
+void bufferguard(const char *buf, const char *where)
+{	/* puts out a warning on stderr if a buffer is 50% or more of
+	 * the size represented by PAGE
+	*/
+	size_t len = strlen(buf);
+	double pctd = (double) len / PAGE + 0.5;
+	size_t pct = pctd;
+	if (pct >= 50) {
+		fprintf(stderr, "Buffer is %lu per cent full at function %s.\n",
+					pct, where);
+	}
+} // bufferguard()

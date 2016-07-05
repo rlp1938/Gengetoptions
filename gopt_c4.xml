@@ -1,0 +1,26 @@
+<comment>
+	Append data between "text" tags into gopt.c verbatim
+</comment>
+<text>
+		case ':':
+			fprintf(stderr, "Option %s requires an argument\n",
+					argv[this_option_optind]);
+			dohelp(1);
+		break;
+		case '?':
+			fprintf(stderr, "Unknown option: %s\n",
+					 argv[this_option_optind]);
+			dohelp(1);
+		break;
+		} // switch()
+	} // while()
+	return opts;
+} // process_options()
+
+void dohelp(int forced)
+{
+  fputs(helpmsg, stderr);
+  exit(forced);
+} // dohelp()
+
+</text>
