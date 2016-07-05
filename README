@@ -1,0 +1,36 @@
+README for Gengetoptions.
+1. It is a replacement for Gengetopt which I found too cumbersome to
+use in practice. This attempt has no interaction, it  just writes an xml
+file using simple options, and the designer just completes the fields in
+the resulting xml file. Program is 'genxml'.
+2. The program files are generated from this xml file using 'optgen'.
+The generated code comprises 'gopt.h', 'gopt.c' and if the xml file was
+named 'myprog.xml' there will be a minimal program 'myprog.c' which has
+an elementary main() function for testing option selection.
+3. No attempt has been made to generate any non-option argument
+processing as doing so just over-complicates everything.
+4. The generated xml file has plenty of embedded comments that should
+sufficiently explain how to fill in the required fields before program
+generation.
+
+BUFFER SIZING
+At lines 23 - 24 in optgen.c I have:
+#define PAGE PATH_MAX
+#define LINE NAME_MAX
+where PATH_MAX is 4096 bytes and NAME_MAX 256 bytes. These sizes seem to
+be adequate for small C programs, however for large helptext output that
+may not be the case. Also, for Far Eastern languages which use 3 and 4
+bytes per character, the buffer sizes may not do for even fairly small
+programs. Before any buffer of PATH_MAX size is emitted during program
+generation, there is a function bufferguard() that checks that said
+buffer is less than 50% full and emits a warning on stderr otherwise. To
+increase buffer sizes throughout it will only be required to alter lines
+23 and 24 eg:
+#define PAGE N*PATH_MAX
+#define LINE N*NAME_MAX
+where N may be 2, 4, 8 ...
+
+FIRST RUN: On first run of 'genxml' a number of boiler plate code files
+will be copied from /usr/local/share/gengetoptions/ to
+$HOME/.config/gengetoptions/ . There is no such capability for 'optgen'
+so 'genxml' must be run first.
