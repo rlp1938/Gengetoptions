@@ -1,4 +1,3 @@
-
 /*      optgen.c
  *
  *	Copyright 2016 Bob Parker rlp1938@gmail.com
@@ -282,7 +281,8 @@ void init3files(char *xmlfile)
 	hl2 = "#include \"stringops.h\"";
 	writeinitfile("gopt.c", user, yy, email, hl1, hl2,
 					"#include \"gopt.h\"", sd.from);
-	char *mainprog = cfilefromxml(xmlfile);
+	char *mainprog;
+	mainprog = cfilefromxml(xmlfile);
 	writeinitfile(mainprog, user, yy, email, hl1, hl2,
 					"#include \"gopt.h\"", sd.from);
 } // init3files()
@@ -313,7 +313,7 @@ static char *cfilefromxml(char *xmlfile)
 {
 	static char buf[LINE];
 	strcpy(buf, xmlfile);
-	char *cp = strstr(xmlfile, ".xml");
+	char *cp = strstr(buf, ".xml");
 	*cp = '\0';
 	strcat(buf, ".c");
 	return buf;
