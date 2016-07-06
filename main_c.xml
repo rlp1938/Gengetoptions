@@ -1,0 +1,13 @@
+<comment>
+	Append data between "text" tags into the test C file verbatim
+</comment>
+<text>
+int main(int argc, char **argv)
+{
+	options_t opts = process_options(argc, argv);
+	
+	/* process non-option arguments */
+	
+	return 0;
+} // main()
+</text>

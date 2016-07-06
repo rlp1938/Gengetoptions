@@ -19,7 +19,7 @@
 
 void dohelp(int forced)
 {
-  fputs(helpmsg, stderr);
+  fputs(helptext, stderr);
   exit(forced);
 } // dohelp()
 

@@ -16,8 +16,8 @@
 		<type>
 		</type>
 	/* Write the C code to set the default value here.*/
-		<default>
-		</default>
+<default>
+</default>
 	</goptvariable>
 	<optvariable>
 		<vname></vname>

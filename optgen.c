@@ -23,6 +23,7 @@
 #define PAGE PATH_MAX
 #define LINE NAME_MAX
 
+char *mainprog;
 
 char *helpmsg = "\n\tUsage: untitled [option] file or dir\n"
   "\n\tOptions:\n"
@@ -162,6 +163,7 @@ int main(int argc, char **argv)
 	writefixeddata("gopt.c", "~/.config/gengetoptions/gopt_c3.xml");
 	writeoptionsprocessing("gopt.c", opts, ocount);
 	writefixeddata("gopt.c", "~/.config/gengetoptions/gopt_c4.xml");
+	writefixeddata(mainprog, "~/.config/gengetoptions/main_c.xml");
 	return 0;
 }//main()
 
@@ -276,12 +278,11 @@ void init3files(char *xmlfile)
 	char *hl1 = "#ifndef GOPT_H";
 	char *hl2 = "#define GOPT_H";
 	writeinitfile("gopt.h", user, yy, email, hl1, hl2,
-					"char *opstring;", sd.from);
+					"char *optstring;\nchar *helptext;", sd.from);
 	hl1 = "#include \"fileops.h\"";
 	hl2 = "#include \"stringops.h\"";
 	writeinitfile("gopt.c", user, yy, email, hl1, hl2,
 					"#include \"gopt.h\"", sd.from);
-	char *mainprog;
 	mainprog = cfilefromxml(xmlfile);
 	writeinitfile(mainprog, user, yy, email, hl1, hl2,
 					"#include \"gopt.h\"", sd.from);
@@ -324,7 +325,7 @@ void makevarstruct(const char *optheader, vars vs[], const int nvs)
 	int i;
 	vars localvs;
 	char buf[PAGE];
-	strcpy(buf, "typedef struct opsruct {\n");
+	strcpy(buf, "typedef struct opstruct {\n");
 	for (i = 0; i < nvs; i++) {
 		localvs = vs[i];
 		char line[LINE];
@@ -348,14 +349,12 @@ void initoptstring(const char *optsfile, options_t opts[],
 		localopt = opts[i];
 		if (strlen(localopt.shortname)) {
 			strcat(wrkbuf, localopt.shortname);
-			if (strcmp(localopt.optarg, "1") == 0) {
-				strcat(wrkbuf, ":");
-			}
 		} // if()
 	} // for()
 	if (strlen(wrkbuf)) { // no short options at all is possible
-		strcat(retbuf, ":");
+		strcat(retbuf, "\":");
 		strcat(retbuf, wrkbuf);
+		strcat(retbuf, "\"");
 	} else {
 		strcat(retbuf, "\"\""); // man 3 getopt
 	}
@@ -416,7 +415,7 @@ void writelongoptlines(const char *optsfile, options_t opts[],
 		}
 		strcat(buf, line);
 	}
-	strcat(buf, "\t\t{0,\t0,\t0,\t0 }\n");
+	strcat(buf, "\t\t{0,\t0,\t0,\t0 }\n\t\t\t};\n");
 	bufferguard(buf, "writelongoptlines");
 	writefile(optsfile, buf, NULL, "a");
 } // writelongoptlines()
