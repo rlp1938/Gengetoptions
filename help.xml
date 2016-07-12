@@ -41,6 +41,11 @@
 <code>
 		dohelp(0);
 </code>
+
+/* If you want 'synopsis' paragraph(s) to display before the options
+listing in help type it here. To force line breaking in the result use
+'\n' not a real break  */
+<synopsis></synopsis>
 <helptext>
 	Print this message and exit.
 </helptext>
