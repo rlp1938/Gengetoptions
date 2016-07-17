@@ -87,7 +87,6 @@ static void writeoptionsprocessing(const char *optsfile,
                             const int ocount);
 static void gatherhelptext(const char *optsfile, options_t opts[],
                             const int ocount);
-static char *formathelplines(char *raw);
 static void writelongoptions(const char *optsfile, options_t opts[],
                                 const int ocount);
 static void writeshortoptions(const char *optsfile, options_t opts[],
@@ -98,7 +97,10 @@ static void bufferguard(const char *buf, const char *where);
 static void emitsynopsis(const char *optsfile,  options_t opts[], 
                             const int oindex);
 static void spaceclustertosingle(char *in, char *out);
-static void groupby72long(char *in, char *out);
+static void group(char *in, char *out);
+static void cleanuptext_r(char *in, char *out);
+static void groupby72long(const char *before, char *in, const char *after,
+					char *out);
 
 int main(int argc, char **argv)
 {
@@ -451,7 +453,8 @@ static void gatherhelptext(const char *optsfile, options_t opts[],
     for (i = 0; i < ocount; i++) {
         char line[PAGE];
         localopts = opts[i];
-        char *helptext = formathelplines(localopts.helptext);
+        char helptext[PAGE];
+        group(localopts.helptext, helptext);
         char *fmt;
         if (strlen(localopts.shortname) && strlen(localopts.longname)) {
             fmt = "  \"\\t-%s, --%s\\n\"\n%s";
@@ -471,79 +474,9 @@ static void gatherhelptext(const char *optsfile, options_t opts[],
     writefile(optsfile, buf, NULL, "a");
 } // gatherhelptext()
 
-char *formathelplines(char *raw)
-{
-    static char buf1[PAGE];
-    char buf2[PAGE], buf3[PAGE];
-    const size_t linelen = 72;
-    strcpy(buf3, raw);
-    char *cp = buf3;
-    size_t ll = strlen(buf3);
-    char *ep = cp + ll -1;
-    while(isspace(*cp) && cp < ep) cp++;    // bye leading whitespace
-    while(isspace(*ep) && ep > cp) *ep = '\0'; // bye trailing ditto
-    strcpy(buf2, cp);
-    cp = buf2;
-    while (*cp != '\0') { // all whitespace becomes a simple ' '.
-        if(isspace(*cp)) *cp = ' ';
-        cp++;
-    }
-    int inspace = 0;
-    cp = buf2;
-    memset(buf3, 0, PAGE);  // guard against garbage data
-    ep = buf3;
-    while (*cp != '\0') { // reduce clusters of ' ' to 1 ' '.
-        if (inspace && *cp == ' ') {
-            cp++;   // no copy ' '
-        } else if (!inspace && *cp == ' ') {
-            inspace = 1;
-            *ep = *cp;  // copy this ' '
-            ep++; cp++;
-        } else {
-            inspace = 0;
-            *ep = *cp;
-            ep++; cp++;
-        }
-    } // while()
-    *ep = '\0';
-    ll = strlen(buf3);
-    buf1[0] = 0;
-    char *bol = "  \"\\t";
-    char *eol = "\\n\"\n";
-    while (ll > linelen) {
-        ep = buf3 + linelen - 1;
-        while(!isspace(*ep)) ep--;
-        // If user provides insane data he is welcome to the segfault.
-        *ep = '\0';
-        /* All that happens here is that bunches of words, 72 chars long
-         * or less, and wrapped thus '  "\thelptext words... \n"'
-         * are returned to the caller.
-        */
-        strcat(buf1, bol);
-        strcat(buf1, buf3);
-        strcat(buf1, eol);  // a line to display
-        ep++;
-        strcpy(buf2, ep);   // make the next line ready
-        memset(buf3, 0, PAGE);
-        strcpy(buf3, buf2);
-        ll = strlen(buf3);
-    } // while(ll ..)
-    if (strlen(buf3)) {
-        strcat(buf1, bol);
-        strcat(buf1, buf3);
-        strcat(buf1, eol);
-    }
-    return buf1;
-} // formathelplines()
-
 void writelongoptions(const char *optsfile, options_t opts[],
                                 const int ocount)
-{   /* In what follows I will be providing a case stub for each and
-    * every long option regardless of whether a corresponding short
-    * option exixts, without yet knowing if these stubs will even
-    * execute if there is a short option in place.
-    * Following on will be the case code for the short options.
-    * */
+{
     char buf[PAGE];
     options_t localopts;
     strcpy(buf, "\t\tcase 0:\n\t\t\tswitch (option_index) {\n");
@@ -672,52 +605,12 @@ void bufferguard(const char *buf, const char *where)
 
 void emitsynopsis(const char *optsfile,  options_t opts[], 
                             const int oindex)
-{   /* Differs from helptext in that "\\n" is handled specially */
-    char buf[PAGE], wrk[PAGE], line[PAGE];
-    options_t localopts;
-    const int linelen = 72;
-    localopts = opts[oindex];
-    if(!strlen(localopts.synopsis)) return; // nothing to do
-    writefile(optsfile, "\tsynopsis =\n", NULL, "a");
-    memset(wrk, 0, PAGE);
-    strcpy(wrk, localopts.synopsis);
-    char *cp = wrk;
-    char *ep = cp + strlen(cp) - 1;
-    char *absend = ep;
-    while (cp < ep) {
-        if (isspace(*cp)) *cp = ' ';    // all \n\t etc to ' '
-        cp++;
-    }
-    stripspace_r(wrk, wrk); // remove leading and trailing ' '
-    spaceclustertosingle(wrk, wrk);	// groups of ' ' become 1 ' '.
-    cp = wrk;
-    int len;
-    buf[0] = 0;	// strcat everything
-    while (cp < absend) {
-		ep = strstr(cp, "\\n");
-		if(ep) {
-			*ep = 0;
-			len = ep - cp;
-			if (len > linelen) {
-				groupby72long(cp, line);
-				strcat(buf, line);	// all nicely wrapped in '  " ... "'
-			} else {
-				strcat(buf, "  \"");
-				if (strlen(cp) == 0) {
-					strcat(buf, "\\n");
-				} else {
-					strcat(buf, cp);
-				}
-				strcat(buf, "\"\n");
-			}
-			cp = ep + 2;
-			while(*cp == ' ') cp++;
-		} else {	// no more "\\n" found so finish up.
-			groupby72long(cp, line);
-			strcat(buf, line);	// all nicely wrapped in '  " ... "'
-			break;
-		}
-	} // while()
+{   /* Differs from helptext in that there is no insertion of help 
+		chars. Otherwise the processing is the same. */
+	char buf[PAGE];
+	options_t localopts = opts[oindex];
+	writefile(optsfile, "\tsynopsis =\n", NULL, "a");
+	group(localopts.synopsis, buf);
 	strcat(buf, "  ;\n");
 	bufferguard(buf, "emitsynopsis");
 	writefile(optsfile, buf, NULL, "a");
@@ -747,30 +640,79 @@ void spaceclustertosingle(char *in, char *out)
     strcpy(out, obuf);
 } // spaceclustertosingle()
 
-void groupby72long(char *in, char *out)
+void cleanuptext_r(char *in, char *out)
+{	/* strips off all leading and trailing white space chars, converts
+		all interior white space chars to ' ' then converts all clusters
+		of ' ' to a single ' '. */
+	char wrk[PAGE], buf[PAGE];
+	strcpy(wrk, in);
+	stripspace_r(wrk, wrk);
+	char *cp = wrk;
+	while (*cp) {
+		if (isspace(*cp)) {
+			*cp = ' ';	// \n, \t etc to be ' '
+		}
+		cp++;
+	}
+	spaceclustertosingle(wrk, buf);
+	strcpy(out, buf);
+} // cleanuptext_r()
+
+void group(char *in, char *out)
 {	/* take an arbitrary string and break it into pieces at a space,
 	72 chars long or less. Wrap the strings in '  " .. data .. \n"' */
-	char buf[PAGE], wrk[PAGE];
-	char *cp, *ep, *absend;
+	char buf[PAGE], wrk[PAGE], line[LINE];
+	char *cp, *lf;
 	const unsigned int linelen = 72;
-	memset(wrk, 0, PAGE);
+	const char *before = "  \"\\t";
+	const char *after = "\\n\"\n";
+	const char *fmt = "%s%s%s";
 	strcpy(wrk, in);
+	cleanuptext_r(wrk, wrk);
 	cp = wrk;
-	absend = cp + strlen(cp);
+	buf[0] = 0;	// buf is the formatted result. Cat everything on to it.
+	while (1) {
+		lf = strstr(cp, "\\n");
+		if (lf) {
+			*lf = 0;
+			if (strlen(cp) >= linelen) {
+				groupby72long(before, cp, after, wrk);
+				strcat(buf, wrk);
+			} else {
+				sprintf(line, fmt, before, cp, after);
+				strcat(buf, line);
+			}
+			cp = lf + 2;	// \\t is 2 ch long
+			if (!strlen(cp)) break;
+			while(*cp == ' ') cp++;
+		} else {	// no more required linefeeds, just break at <= 72
+			groupby72long(before, cp, after, wrk);
+			strcat(buf, wrk);
+			break;
+		}
+	} // while(1)
+	strcpy(out, buf);
+} // group()
+
+void groupby72long(const char *before, char *in, const char *after, char *out)
+{
+	const unsigned int linelen = 72;
+	char wrk[PAGE], buf[PAGE], line[LINE];
 	buf[0] = 0;
-	while(strlen(cp) >= linelen) {
-		ep = cp + linelen - 1;
-		while(!isspace(*ep)) ep--;
+	memset(wrk, 0, PAGE);	// will be looking beyond input data
+	strcpy(wrk, in);
+	char *cp = wrk;
+	while (strlen(cp) >= linelen) {
+		char *ep = cp + linelen - 1;
+		while(*ep == 0 || !isspace(*ep)) ep--;
 		*ep = 0;
-		strcat(buf, "  \"");
-		strcat(buf, cp);
-		strcat(buf, "\"\n");
+		sprintf(line, "%s%s%s", before, cp, after);
+		strcat(buf, line);
 		cp = ep + 1;
 	}
 	if (strlen(cp)) {
-		strcat(buf, "  \"");
-		strcat(buf, cp);
-		strcat(buf, "\"\n");		
+		sprintf(line, "%s%s%s", before, cp, after);
+		strcat(buf, line);
 	}
 	strcpy(out, buf);
 } // groupby72long()
