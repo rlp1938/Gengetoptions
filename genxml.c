@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 					"main_c.xml", "add.xml", "help.xml", "ggoconfig",
 					NULL);
 		fprintf(stdout, "Configuration files installed.\n"
-		"Please edit $HOME/.config/gengetoptions/ggoconfig\n");
+		"Please edit $HOME/.config/genxml/ggoconfig\n");
 		exit(EXIT_SUCCESS);
 	}
 
@@ -117,7 +117,7 @@ void writeinitial(const char *fn)
 {	/* "~/anything" always bombs "no such file" */
 	char *opntag = "<options>";
 	fdata mydat = readfile(get_realpath_home(
-	"~/.config/gengetoptions/help.xml"), 0, 1);
+	"~/.config/genxml/help.xml"), 0, 1);
 	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
 	writefile(fn, opntag, NULL, "w");
 	writefile(fn, sd.from, sd.to, "a");
@@ -131,7 +131,7 @@ void writeadd(const char *fn, char *addargs)
 		exit(EXIT_FAILURE);
 	}
 	fdata mydat = readfile(get_realpath_home(
-	"~/.config/gengetoptions/add.xml"), 0, 1);
+	"~/.config/genxml/add.xml"), 0, 1);
 	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
 	*sd.to = '\0';	// sd.from now a C string.
 	char name[NAME_MAX], sn[NAME_MAX], ln[NAME_MAX];
