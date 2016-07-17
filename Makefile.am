@@ -3,10 +3,12 @@
 AM_CFLAGS=-Wall -Wextra -D_GNU_SOURCE=1
 
 bin_PROGRAMS=genxml optgen
-genxml_SOURCES=genxml.c fileops.c fileops.h stringops.c stringops.h
+genxml_SOURCES=genxml.c fileops.c fileops.h stringops.c stringops.h \
+firstrun.c firstrun.h
 optgen_SOURCES=optgen.c fileops.c fileops.h stringops.c stringops.h
 man_MANS=genxml.1
 gendir=$(datadir)/genxml
-gen_DATA=gopt_c1.xml gopt_c2.xml gopt_c3.xml gopt_c4.xml gopt_h1.xml
+gen_DATA=gopt_c1.xml gopt_c2.xml gopt_c3.xml gopt_c4.xml gopt_h1.xml \
+add.xml help.xml pagetop.xml main_c.xml ggoconfig
 EXTRA_DIST=genxml.1 gopt_c1.xml gopt_c2.xml gopt_c3.xml gopt_c4.xml \
-gopt_h1.xml
+gopt_h1.xml add.xml help.xml pagetop.xml main_c.xml ggoconfig

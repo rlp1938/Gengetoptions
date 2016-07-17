@@ -21,6 +21,7 @@
 
 #include "fileops.h"
 #include "stringops.h"
+#include "firstrun.h"
 
 char *helptext =
   "\tSYNOPSIS\n"
@@ -84,6 +85,15 @@ int main(int argc, char **argv)
         dohelp(1);
 		break;
 		}
+	}
+	if (checkfirstrun("genxml")) {
+		firstrun("genxml", "gopt_c1.xml", "gopt_c2.xml", "gopt_c3.xml",
+					"gopt_c4.xml", "gopt_h1.xml", "pagetop.xml",
+					"main_c.xml", "add.xml", "help.xml", "ggoconfig",
+					NULL);
+		fprintf(stdout, "Configuration files installed.\n"
+		"Please edit $HOME/.config/gengetoptions/ggoconfig\n");
+		exit(EXIT_SUCCESS);
 	}
 
 	char *fn = argv[optind];
