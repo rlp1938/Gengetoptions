@@ -16,7 +16,8 @@
 /genxml
 /genxml.plist/
 /genxml.t2t
-/gopt.?
+/gopt.c
+/gopt.h
 /INSTALL
 /install-sh
 /Makefile
@@ -31,3 +32,5 @@
 /*.tar.gz
 /test*
 /tnooptim.sh
+
+/cpconfig.sh
