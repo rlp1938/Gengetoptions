@@ -6,8 +6,9 @@
 	<name>HELP</name>
 	<shortname>h</shortname>
 	<longname>help</longname>
-	/* variables in scope of gopt.c. If there are none delete everything
-	   between opening and closing tags.
+
+	/* 'goptvariable': variables in scope of gopt.c. If there are none
+		delete everything between opening and closing tags.
 	   Repeat the group for as many variables as you want.
 	*/
 	<goptvariable>
@@ -17,14 +18,14 @@
 <default>
 </default>
 	</goptvariable>
+
+	/* 'optvariable': variables in scope of gopt.c. If there are none
+		delete everything between opening and closing tags.
+	   Repeat the group for as many variables as you want.
+	*/
 	<optvariable>
 		<vname></vname>
 		<type></type>
-	/* Always just type C code between 'default' tag pairs
-	   Format with tabs as required to place the code where you want in
-	   the resulting C program.
-	   The variable name must be prefixed with 'opts.'
-	*/
 <default>
 </default>
 	</optvariable>
