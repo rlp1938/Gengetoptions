@@ -230,6 +230,12 @@ static int counttags(char *fro, char *to, const char *tag)
 	return count;
 } // counttags()
 
+/* gettagaddress()
+ * returns list[] which comprises simple char *. These are not C strings
+ * so if you need to view them using any of the printf() family or
+ * trace() then use a format something like "%.20s" to restrict the
+ * number of chars shown.
+*/
 void gettagaddress(const char *tag, char *fro, char *to, char *list[])
 {
 	int i = 0;
