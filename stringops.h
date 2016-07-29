@@ -51,5 +51,8 @@ typedef struct sdata {
 char *dostrdup(const char *str);
 char *getcfgvalue(const char *cfgname, char **cfglines);
 strdata getdatafromtagnames(char *fro, char *to, char *tagname);
+void trace(const char *fn, char *fmt, ...);
+int getdatatype(char *partformat);
+void trace_init(const char *fn);
 
 #endif

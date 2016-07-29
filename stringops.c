@@ -64,3 +64,158 @@ strdata getdatafromtagnames(char *fro, char *to, char *tagname)
 	}
 	return sd;
 } // getdatafromtagnames()
+
+void trace(const char *fn, char *fmt, ...)
+{
+	va_list ap;
+	char buf[PATH_MAX];
+	char line[NAME_MAX];
+	char format[NAME_MAX];
+	char *bp, *pp, *lp;
+	
+	va_start(ap, fmt);
+	buf[0] = 0;	// strcat everything
+	bp = fmt;
+	lp = bp + strlen(fmt);
+	while (1) {
+		pp = strchr(bp+1, '%');
+		int done = 0;
+		if (!pp) {
+			pp = lp;	// sweep up whatever is at the end of fmt
+			done = 1;	// force exit after format identification.
+		}
+		if (*(pp + 1) == '%') {	// "%%"
+			strcat(format, "%");
+			pp++;
+		}
+		strncpy(format, bp, pp - bp);
+		format[pp - bp] = 0;
+		int thetype = getdatatype(format);
+		int ii; long int li; long long int lli; double d;
+		long double ld; char *s; void *vp;
+		switch (thetype)
+		{
+			case 0:	// print whatever it is
+				strcpy(line, format);
+				break;
+			case 1:	// integer types
+				ii = va_arg(ap, int);
+				sprintf(line, format, ii);
+				break;
+			case 2:	// long int types
+				li = va_arg(ap, long int);
+				sprintf(line, format, li);
+				break;
+			case 3:	// long long int types
+				lli = va_arg(ap, long long int);
+				sprintf(line, format, lli);
+				break;
+			case 4:	// doubles
+				d = va_arg(ap, double);
+				sprintf(line, format, d);
+				break;
+			case 5:	// long doubles
+				ld = va_arg(ap, long double);
+				sprintf(line, format, ld);
+				break;
+			case 6:	// char *
+				s = va_arg(ap, char *);
+				sprintf(line, format, s);
+				break;
+			case 7:	// void *
+				vp = va_arg(ap, void *);
+				sprintf(line, format, vp);
+				break;
+			case 8:	// just print '%'
+				strcpy(line, "%");
+				break;
+			default:	// there are no defaults
+				break;
+		}	// switch()
+		strcat(buf, line);
+		if(done) break;
+		bp = pp;	// move on to the next
+	} // while(1)
+	writefile(fn, buf, NULL, "a");
+} // trace()
+
+/* trace() - function to trace program execution.
+ * writes formatted data to named file, stdout if "-", stderr if "+",
+ * otherwise whatever the file is named.
+ * Format chars supported:
+ * %d	int
+ * %c	int
+ * %u	unsigned int
+ * %ld	long int
+ * %lld	long long int
+ * %lu	long unsigned int
+ * %llu	long long unsigned int
+ * %f	float
+ * %g	float
+ * %e	float
+ * %lg	double
+ * %lf	double
+ * %le	double
+ * */
+int getdatatype(char *partformat)
+{	/* must get past modifiers for most types but afaik the first 2
+		don't use them.
+	*/
+	if (strstr(partformat, "%p")) return 7;	// void *
+	if (strstr(partformat, "%%")) return 8;	// just print '%'
+	
+	char *cp = partformat;	// reach past modifiers
+	cp = strchr(cp, '%');
+	if (!cp) return 0;	// just print it all.
+	cp++;	// get past '%'
+	while (isdigit(*cp)) cp++;	// field width
+	if (*cp == '.') cp++;
+	while (isdigit(*cp)) cp++;	// precision
+	
+	// the next group single char only
+	if (*cp == 'd') return 1;	// integer types
+	if (*cp == 'u') return 1;
+	if (*cp == 'c') return 1;
+	if (*cp == 'o') return 1;
+	if (*cp == 'x') return 1;
+	if (*cp == 'X') return 1;
+
+	if (strncmp(cp, "ld", 2) == 0 ) return 2;	// long integer types
+	if (strncmp(cp, "lu", 2) == 0 ) return 2;
+	if (strncmp(cp, "lo", 2) == 0 ) return 2;
+	if (strncmp(cp, "lx", 2) == 0 ) return 2;
+	if (strncmp(cp, "lX", 2) == 0 ) return 2;
+
+	if (strncmp(cp, "lld", 3 ) == 0 )return 3;	// long long types
+	if (strncmp(cp, "llu", 3 ) == 0 )return 3;
+	if (strncmp(cp, "llo", 3 ) == 0 )return 3;
+	if (strncmp(cp, "llx", 3 ) == 0 )return 3;
+	if (strncmp(cp, "llX", 3 ) == 0 )return 3;
+
+	if (strncmp(cp, "e", 1 ) == 0 ) return 4;	// double types promoted
+	if (strncmp(cp, "f", 1 ) == 0 ) return 4;
+	if (strncmp(cp, "g", 1 ) == 0 ) return 4;
+	if (strncmp(cp, "le", 2 ) == 0 ) return 4;	// double types native
+	if (strncmp(cp, "lE", 2 ) == 0 ) return 4;
+	if (strncmp(cp, "lf", 2 ) == 0 ) return 4;
+	if (strncmp(cp, "lg", 2 ) == 0 ) return 4;
+	if (strncmp(cp, "lG", 2 ) == 0 ) return 4;
+
+	if (strncmp(cp, "lle", 3 ) == 0 ) return 5;	// long double types
+	if (strncmp(cp, "llE", 3 ) == 0 ) return 5;
+	if (strncmp(cp, "llf", 3 ) == 0 ) return 5;
+	if (strncmp(cp, "llg", 3 ) == 0 ) return 5;
+	if (strncmp(cp, "llG", 3 ) == 0 ) return 5;
+
+	if (strncmp(cp, "s" , 1) == 0 ) return 6;	// char *
+	if (strncmp(cp, "ls", 2) == 0 ) return 6;
+
+	return 0;	// print whatever garbage is in the buffer.
+} // getdatatype()
+
+void trace_init(const char *fn)
+{	/* If fn == "-" does nothing, else it creates or truncates fn */
+	if (strcmp(fn, "-") == 0) return;
+	FILE *fp = dofopen(fn, "w");
+	dofclose(fp);
+}
