@@ -135,16 +135,14 @@ int main(int argc, char **argv)
 		break;
 		} //switch()
 	}//while()
-	char *xmlfile = argv[optind];
+	char *xmlfile = dostrdup(argv[optind]);
 	/* Some errors in formatting the xml file can give rise to errors 
 	 * that are abysmally hard to find. They can cause optgen to crash
 	 * and also the generated main program. Hopefully, the validatexml
 	 * function will turn that situation into a doddle.
 	*/
 	validatexml(xmlfile);
-
 	fdata mydat = readfile(xmlfile, 0, 1);
-	//writefile("logfile", "counttags\n", NULL, "a");
 
 	int gcount = counttags(mydat.from, mydat.to, "gname");
 	int vcount = counttags(mydat.from, mydat.to, "vname");
@@ -155,62 +153,47 @@ int main(int argc, char **argv)
 	vars vdat[vcount];
 
 	char *gtaglist[gcount];
-	//writefile("logfile", "gettagaddress gname\n", NULL, "a");
 	gettagaddress("gname", mydat.from, mydat.to, gtaglist);
 	char *vtaglist[vcount];
-	//writefile("logfile", "gettagaddress vname\n", NULL, "a");
 	gettagaddress("vname", mydat.from, mydat.to, vtaglist);
 	char *otaglist[ocount];
-	//writefile("logfile", "gettagaddress name\n", NULL, "a");
 	gettagaddress("name", mydat.from, mydat.to, otaglist);
+
 	int i;
 	for (i = 0; i < gcount; i++) {
-	//writefile("logfile", "getgvsdata\n", NULL, "a");
 		getgvsdata(gtaglist[i], mydat.to, &gvs[i]);
 	}
+
 	for (i = 0; i < vcount; i++) {
-	//writefile("logfile", "getvarsdata\n", NULL, "a");
 		getvarsdata(vtaglist[i], mydat.to, &vdat[i]);
 	}
+
 	for (i = 0; i < ocount; i++) {
-	//writefile("logfile", "getoptsdata\n", NULL, "a");
 		getoptsdata(otaglist[i], mydat.to, &optdat[i], i);
 	}
 	/* data gathering complete. Write the page tops for the C code with
 	 * a main(), gopt.h|c
 	*/
+
 	init3files(xmlfile);
-	//writefile("logfile", "makevarstruct\n", NULL, "a");
 	makevarstruct("gopt.h", vdat, vcount);
-	//writefile("logfile", "writefixeddata gopt_h1\n", NULL, "a");
 	writefixeddata("gopt.h", "~/.config/genxml/gopt_h1.xml");
 	char *hend = "#endif\n";
-	//writefile("logfile", "writefile gopt.h done.\n", NULL, "a");
+
 	writefile("gopt.h", hend, NULL, "a");   // gopt.h done.
-	//writefile("logfile", "writefixeddata gopt_c1\n", NULL, "a");
 	writefixeddata("gopt.c", "~/.config/genxml/gopt_c1.xml");
-	//writefile("logfile", "emitsynopsis\n", NULL, "a");
 	emitsynopsis("gopt.c",  optdat, 0);	// used at optdat[0] only.
-	//writefile("logfile", "gatherhelptext\n", NULL, "a");
 	gatherhelptext("gopt.c",  optdat, ocount);
-	//writefile("logfile", "initoptstring\n", NULL, "a");
 	initoptstring("gopt.c", optdat, ocount);
-	//writefile("logfile", "setgvsdefaults\n", NULL, "a");
 	setgvsdefaults("gopt.c", gvs, gcount);
-	//writefile("logfile", "setovdefaults\n", NULL, "a");
 	setovdefaults("gopt.c", vdat, vcount);
-	//writefile("logfile", "makevarstruct", NULL, "a");
 	writefixeddata("gopt.c", "~/.config/genxml/gopt_c2.xml");
-	//writefile("logfile", "writelongoptlines\n", NULL, "a");
 	writelongoptlines("gopt.c", optdat, ocount);
-	//writefile("logfile", "writefixeddata gopt_c3\n", NULL, "a");
 	writefixeddata("gopt.c", "~/.config/genxml/gopt_c3.xml");
-	//writefile("logfile", "writeoptionsprocessing", NULL, "a");
 	writeoptionsprocessing("gopt.c", optdat, ocount);
-	//writefile("logfile", "writefixeddata gopt_c4\n", NULL, "a");
 	writefixeddata("gopt.c", "~/.config/genxml/gopt_c4.xml");
-	//writefile("logfile", "writefixeddata main_c\n", NULL, "a");
 	writefixeddata(mainprog, "~/.config/genxml/main_c.xml");
+	free(xmlfile);
 	return 0;
 }//main()
 
@@ -253,15 +236,14 @@ void gettagaddress(const char *tag, char *fro, char *to, char *list[])
 	char *cp = fro;
 	char opn[LINE];
 	sprintf(opn, "<%s>", tag);
-	size_t tlen = strlen(tag);
+	size_t tlen = strlen(opn);
 	while (cp < to) {
-		cp = memmem(cp, to - cp, tag, tlen);
+		cp = memmem(cp, to - cp, opn, tlen);
 		if (!cp) break;
 		list[i] = cp;
 		i++;
 		cp += tlen;
 	}
-
 } // gettagaddress()
 
 void getgvsdata(char *fro, char *to, govars_t *gvsdat)
@@ -282,6 +264,7 @@ void getvarsdata(char *fro, char *to, vars *vardat)
 	vardat->type = dostrdup(res);
 	res = getdatabytag("<default>", "</default>", fro, to);
 	vardat->deflt = dostrdup(res);
+	return;
 } // getvarsdata()
 
 void getoptsdata(char *fro, char *to, optdata_t *optdat, int index)
@@ -315,12 +298,6 @@ char *getdatabytag(const char *opn, const char *cls, char *fro,
 {
 	static char buf[PAGE];  // useable for optdata_t as well as vars
 	char wrk [PAGE];
-	char logit[PAGE];
-	char line[LINE];
-	strncpy(line, fro, 20);
-	line[20] = 0;
-	sprintf(logit, "%s %s %s\n", opn, cls, line);
-	//writefile("logfile", logit, NULL, "a");
 	size_t len = strlen(opn);
 	char *cp = fro; // begin all searches from the top of the group.
 	cp = memmem(cp, to - cp, opn, len);
@@ -328,7 +305,6 @@ char *getdatabytag(const char *opn, const char *cls, char *fro,
 	cp += len;
 	char *clcp = memmem(cp, to - cp, cls, len+1);
 	if(!clcp){
-		sleep(2);
 		tagerror(cls);
 	}
 	size_t dlen = clcp - cp;
