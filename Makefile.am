@@ -4,7 +4,7 @@ AM_CFLAGS=-Wall -Wextra -D_GNU_SOURCE=1
 
 bin_PROGRAMS=genxml optgen
 genxml_SOURCES=genxml.c fileops.c fileops.h stringops.c stringops.h \
-firstrun.c firstrun.h
+firstrun.c firstrun.h genxmlopt.h genxmlopt.c
 optgen_SOURCES=optgen.c fileops.c fileops.h stringops.c stringops.h
 man_MANS=genxml.1
 gendir=$(datadir)/genxml

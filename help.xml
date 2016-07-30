@@ -44,17 +44,7 @@
 /* If you want 'synopsis' paragraph(s) to display before the options
 listing in help type it here. To force line breaking in the result use
 '\n' as well as or instead of a real break.  */
-<synopsis>
-        SYNOPSIS\n
-        genxml xmlfilename\n
-        When run without options, initialises xmlfilename with -h option
-        processing.\n
-        \n
-        genxml -a OPTNAME,shortname,longname xmlfilename\n
-        \n
-        genxml -c OPTNAME,shortname,longname xmlfilename\n
-        \n
-</synopsis>
+<synopsis></synopsis>
 <helptext>
 	Print this message and exit.
 </helptext>

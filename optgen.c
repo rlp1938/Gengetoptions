@@ -101,7 +101,7 @@ static void emitsynopsis(const char *optsfile,  optdata_t optdat[],
 static void spaceclustertosingle(char *in, char *out);
 static void group(char *in, char *out);
 static void cleanuptext_r(char *in, char *out);
-static void groupby72long(const char *before, char *in,
+static void groupsetwidth(const char *before, char *in,
 							const char *after, char *out);
 static void validatexml(const char *datafile);
 static bool testbyline(char *fro, char *to, char *maintag, char *vartag, 
@@ -408,9 +408,13 @@ void initoptstring(const char *optsfile, optdata_t optdat[],
 		localopt = optdat[i];
 		if (strlen(localopt.shortname)) {
 			strcat(wrkbuf, localopt.shortname);
+			if (localopt.optarg[0] == '1') {
+				strcat(wrkbuf, ":");	// wants optarg
+			}
+			
 		} // if()
 	} // for()
-	if (strlen(wrkbuf)) { // no short options at all is possible
+	if (strlen(wrkbuf)) { // It is possible that there are 0 short opts.
 		strcat(retbuf, "\":");
 		strcat(retbuf, wrkbuf);
 		strcat(retbuf, "\"");
@@ -426,7 +430,7 @@ void setovdefaults(const char *optsfile, vars  vs[], const int nvs)
 {
 	char buf[PAGE];
 	strcpy(buf, "\n\t/* set up defaults for opt vars. */\n");
-	strcat(buf, "\toptdata_t optdat;\n");
+	strcat(buf, "\toptions_t opts;\n");
 	int i;
 	for (i = 0; i < nvs; i++) {
 		vars localvs = vs[i];
@@ -712,41 +716,39 @@ void group(char *in, char *out)
 	72 chars long or less. Wrap the strings in '  " .. data .. \n"' */
 	char buf[PAGE], wrk[PAGE], line[LINE];
 	char *cp, *lf;
-	const unsigned int linelen = 72;
 	const char *before = "  \"\\t";
 	const char *after = "\\n\"\n";
 	const char *fmt = "%s%s%s";
+	const char *mustbreak = "\\n";
+	const char *emptyline = "  \"\\n\"\n";
 	strcpy(wrk, in);
 	cleanuptext_r(wrk, wrk);
 	cp = wrk;
+	lf = strstr(cp, mustbreak);
 	buf[0] = 0;	// buf is the formatted result. Cat everything on to it.
-	while (1) {
-		lf = strstr(cp, "\\n");
-		if (lf) {
-			*lf = 0;
-			if (strlen(cp) >= linelen) {
-				groupby72long(before, cp, after, wrk);
-				strcat(buf, wrk);
-			} else {
-				sprintf(line, fmt, before, cp, after);
-				strcat(buf, line);
-			}
-			cp = lf + 2;	// \\t is 2 ch long
-			if (!strlen(cp)) break;
-			while(*cp == ' ') cp++;
-		} else {	// no more required linefeeds, just break at <= 72
-			groupby72long(before, cp, after, wrk);
-			strcat(buf, wrk);
-			break;
+	while (lf) {
+		*lf = 0;
+		char inside[LINE];
+		if (strlen(cp)) {
+			groupsetwidth(before, cp, after, inside);
+			strcat(buf, inside);
+		} else {
+			strcat(buf, emptyline);
 		}
-	} // while(1)
+		cp = lf + 2;
+		while(isspace(*cp)) cp++;
+		lf = strstr(cp, mustbreak);
+	}
+	if (strlen(cp)) {
+		sprintf(line, fmt, before, cp, after);
+	}
 	strcpy(out, buf);
 } // group()
 
-void groupby72long(const char *before, char *in, const char *after,
+void groupsetwidth(const char *before, char *in, const char *after,
 					char *out)
 {
-	const unsigned int linelen = 72;
+	const unsigned int linelen = 66;
 	char wrk[PAGE], buf[PAGE], line[LINE];
 	buf[0] = 0;
 	memset(wrk, 0, PAGE);	// will be looking beyond input data
@@ -765,7 +767,7 @@ void groupby72long(const char *before, char *in, const char *after,
 		strcat(buf, line);
 	}
 	strcpy(out, buf);
-} // groupby72long()
+} // groupsetwidth()
 
 bool testbyline(char *fro, char *to, char *maintag, char *vartag, 
 				int *lineno)

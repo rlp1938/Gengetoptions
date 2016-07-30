@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([genxml], [1.0], [rlp1938@gmail.com])
+AC_INIT([genxml], [1.1], [rlp1938@gmail.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([genxml.c])
 AC_CONFIG_HEADERS([config.h])
@@ -16,6 +16,7 @@ AC_PROG_CC
 AC_CHECK_HEADERS([fcntl.h limits.h stdlib.h string.h unistd.h utime.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
+AC_CHECK_HEADER_STDBOOL
 AC_TYPE_MODE_T
 AC_TYPE_OFF_T
 AC_TYPE_PID_T
