@@ -25,12 +25,6 @@
 
 char *mainprog;
 
-char *helpmsg = "\n\tUsage: untitled [option] file or dir\n"
-  "\n\tOptions:\n"
-  "\t-h outputs this help message.\n"
-  "\t-???\n"
-  ;
-
 typedef struct optdata_t {
 	char *shortname;
 	char *longname;
@@ -54,7 +48,6 @@ typedef struct govars_t {   // vars local to gopt.c
 	char *deflt;
 } govars_t;
 
-static void dohelp(int forced);
 static int counttags(char *fro, char *to, const char *tag);
 static void gettagaddress(const char *tag, char *fro, char *to,
 							char *list[]);
@@ -117,24 +110,6 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	int opt;
-	while((opt = getopt(argc, argv, ":h etc ")) != -1) {
-		switch(opt){
-		case 'h':
-			dohelp(0);
-		break;
-		case 'x': // fill in actual options
-		break;
-		case ':':
-			fprintf(stderr, "Option %c requires an argument\n",optopt);
-			dohelp(1);
-		break;
-		case '?':
-			fprintf(stderr, "Illegal option: %c\n",optopt);
-			dohelp(1);
-		break;
-		} //switch()
-	}//while()
 	char *xmlfile = dostrdup(argv[optind]);
 	/* Some errors in formatting the xml file can give rise to errors 
 	 * that are abysmally hard to find. They can cause optgen to crash
@@ -182,7 +157,9 @@ int main(int argc, char **argv)
 
 	writefile("gopt.h", hend, NULL, "a");   // gopt.h done.
 	writefixeddata("gopt.c", "~/.config/genxml/gopt_c1.xml");
+	trace("-", "1\n");
 	emitsynopsis("gopt.c",  optdat, 0);	// used at optdat[0] only.
+	trace("-", "2\n");
 	gatherhelptext("gopt.c",  optdat, ocount);
 	initoptstring("gopt.c", optdat, ocount);
 	setgvsdefaults("gopt.c", gvs, gcount);
@@ -196,12 +173,6 @@ int main(int argc, char **argv)
 	free(xmlfile);
 	return 0;
 }//main()
-
-void dohelp(int forced)
-{
-  fputs(helpmsg, stderr);
-  exit(forced);
-}
 
 static int counttags(char *fro, char *to, const char *tag)
 {
@@ -658,7 +629,9 @@ void emitsynopsis(const char *optsfile,  optdata_t optdat[],
 	char buf[PAGE];
 	optdata_t localopts = optdat[oindex];
 	writefile(optsfile, "\tsynopsis =\n", NULL, "a");
+	trace("-", "in emitsynopsis b4 group\n");
 	group(localopts.synopsis, buf);
+	trace("-", "in emitsynopsis after group\n");
 	strcat(buf, "  ;\n");
 	bufferguard(buf, "emitsynopsis");
 	writefile(optsfile, buf, NULL, "a");
@@ -728,9 +701,11 @@ void group(char *in, char *out)
 	buf[0] = 0;	// buf is the formatted result. Cat everything on to it.
 	while (lf) {
 		*lf = 0;
-		char inside[LINE];
+		char inside[PAGE];
 		if (strlen(cp)) {
+			trace("-", "in group b4 groupsetwidth\n");
 			groupsetwidth(before, cp, after, inside);
+			trace("-", "in group after groupsetwidth\n");
 			strcat(buf, inside);
 		} else {
 			strcat(buf, emptyline);
@@ -754,6 +729,7 @@ void groupsetwidth(const char *before, char *in, const char *after,
 	memset(wrk, 0, PAGE);	// will be looking beyond input data
 	strcpy(wrk, in);
 	char *cp = wrk;
+	trace("-", "in groupsetwidth b4 while\n");
 	while (strlen(cp) >= linelen) {
 		char *ep = cp + linelen - 1;
 		while(*ep == 0 || !isspace(*ep)) ep--;
@@ -762,10 +738,13 @@ void groupsetwidth(const char *before, char *in, const char *after,
 		strcat(buf, line);
 		cp = ep + 1;
 	}
+	trace("-", "in groupsetwidth after while\n");
 	if (strlen(cp)) {
 		sprintf(line, "%s%s%s", before, cp, after);
 		strcat(buf, line);
 	}
+	trace("-", "in groupsetwidth at end, buf length: %d\n",
+			strlen(buf));
 	strcpy(out, buf);
 } // groupsetwidth()
 
