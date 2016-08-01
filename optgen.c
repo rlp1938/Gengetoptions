@@ -157,9 +157,7 @@ int main(int argc, char **argv)
 
 	writefile("gopt.h", hend, NULL, "a");   // gopt.h done.
 	writefixeddata("gopt.c", "~/.config/genxml/gopt_c1.xml");
-	trace("-", "1\n");
 	emitsynopsis("gopt.c",  optdat, 0);	// used at optdat[0] only.
-	trace("-", "2\n");
 	gatherhelptext("gopt.c",  optdat, ocount);
 	initoptstring("gopt.c", optdat, ocount);
 	setgvsdefaults("gopt.c", gvs, gcount);
@@ -629,9 +627,7 @@ void emitsynopsis(const char *optsfile,  optdata_t optdat[],
 	char buf[PAGE];
 	optdata_t localopts = optdat[oindex];
 	writefile(optsfile, "\tsynopsis =\n", NULL, "a");
-	trace("-", "in emitsynopsis b4 group\n");
 	group(localopts.synopsis, buf);
-	trace("-", "in emitsynopsis after group\n");
 	strcat(buf, "  ;\n");
 	bufferguard(buf, "emitsynopsis");
 	writefile(optsfile, buf, NULL, "a");
@@ -703,9 +699,7 @@ void group(char *in, char *out)
 		*lf = 0;
 		char inside[PAGE];
 		if (strlen(cp)) {
-			trace("-", "in group b4 groupsetwidth\n");
 			groupsetwidth(before, cp, after, inside);
-			trace("-", "in group after groupsetwidth\n");
 			strcat(buf, inside);
 		} else {
 			strcat(buf, emptyline);
@@ -729,7 +723,6 @@ void groupsetwidth(const char *before, char *in, const char *after,
 	memset(wrk, 0, PAGE);	// will be looking beyond input data
 	strcpy(wrk, in);
 	char *cp = wrk;
-	trace("-", "in groupsetwidth b4 while\n");
 	while (strlen(cp) >= linelen) {
 		char *ep = cp + linelen - 1;
 		while(*ep == 0 || !isspace(*ep)) ep--;
@@ -738,13 +731,10 @@ void groupsetwidth(const char *before, char *in, const char *after,
 		strcat(buf, line);
 		cp = ep + 1;
 	}
-	trace("-", "in groupsetwidth after while\n");
 	if (strlen(cp)) {
 		sprintf(line, "%s%s%s", before, cp, after);
 		strcat(buf, line);
 	}
-	trace("-", "in groupsetwidth at end, buf length: %d\n",
-			strlen(buf));
 	strcpy(out, buf);
 } // groupsetwidth()
 
