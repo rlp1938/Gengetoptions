@@ -1,4 +1,4 @@
-.TH "OPTGEN" 1 "2016-08-01" "Linux Programmer's Manual"
+.TH "OPTGEN" 1 "2016-08-02" "Linux Programmer's Manual"
 
 
 .SH NAME
@@ -89,7 +89,8 @@ there are none required then the intermediate tags must be removed.
 
 .P
 Finally, if your xmlfile is named eg 'my.xml' then there will be a C
-program 'my.c' 
+program 'my.c'. Also generated is 'makefile.opt'. If all is well with
+\&'my.xml' then `make \-f makefile.opt` should build 'my' without error.
 
 .SH OPTIONS
 
