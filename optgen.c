@@ -102,6 +102,8 @@ static bool testbyline(char *fro, char *to, char *maintag, char *vartag,
 static char *gettagdata_r(const char *opn, const char *cls, 
 						const char *fro, const char *limit, char *out);
 static void maketags_r(const char *tagname, char * opntag, char *clstag);
+static void generatemakefile(char *xmlfile, const char *template);
+
 
 int main(int argc, char **argv)
 {
@@ -168,6 +170,7 @@ int main(int argc, char **argv)
 	writeoptionsprocessing("gopt.c", optdat, ocount);
 	writefixeddata("gopt.c", "~/.config/genxml/gopt_c4.xml");
 	writefixeddata(mainprog, "~/.config/genxml/main_c.xml");
+	generatemakefile(xmlfile, "~/.config/genxml/makefile.xml");
 	free(xmlfile);
 	return 0;
 }//main()
@@ -823,3 +826,28 @@ void validatexml(const char *datafile)
 	free(filedat.from);
 }  // validatexml()
 
+void generatemakefile(char *xmlfile, const char *template)
+{
+	char *datafile = get_realpath_home(template);
+	fdata mydat = readfile(datafile, 0, 1);
+	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
+	*sd.to = 0;	// now it's a format string
+	char exefile[LINE];
+	strcpy(exefile, xmlfile);
+	char *ftyp = strstr(exefile, ".xml");
+	*ftyp = 0;
+	const int numexrefs = 9;
+	size_t outlen = sd.to - sd.from + numexrefs * 31;
+	/* Anyone who wants the filename > 31 long is welcome to the
+	 * segfault.
+	*/
+	char *outbuf = docalloc(outlen, 1, "generatemakefile");
+	/* Below: The alternative, doing it a line at a time, is even worse
+	 * IMO.
+	*/
+	sprintf(outbuf, sd.from, exefile, exefile, exefile, exefile,
+			exefile, exefile, exefile, exefile, exefile);
+	writefile("makefile.opt", outbuf, NULL, "w");
+	free(outbuf);
+	free(mydat.from);
+} // generatemakefile()

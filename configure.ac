@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([genxml], [1.1], [rlp1938@gmail.com])
+AC_INIT([1.2], [genxml], [rlp1938@gmail.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([genxml.c])
 AC_CONFIG_HEADERS([config.h])

@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 		firstrun("genxml", "gopt_c1.xml", "gopt_c2.xml", "gopt_c3.xml",
 					"gopt_c4.xml", "gopt_h1.xml", "pagetop.xml",
 					"main_c.xml", "add.xml", "help.xml", "ggoconfig",
-					NULL);
+					"makefile.xml", NULL);
 		fprintf(stdout, "Configuration files installed.\n"
 		"Please edit $HOME/.config/genxml/ggoconfig\n");
 		exit(EXIT_SUCCESS);

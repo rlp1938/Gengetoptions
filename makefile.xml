@@ -1,0 +1,28 @@
+<comment>
+	There are 9 '%s' so the exe file name must be named 9 times in the
+	sprintf().
+</comment>
+<text>
+CC=gcc
+CFLAGS=-c -Wall -Wextra -g -O0 -D_GNU_SOURCE=1
+
+all: %s
+
+%s: fileops.o gopt.o stringops.o %s.o
+	$(CC) fileops.o gopt.o stringops.o %s.o -o %s
+
+%s.o: %s.c fileops.h stringops.h
+	$(CC) $(CFLAGS) %s.c
+	
+fileops.o: fileops.c fileops.h stringops.h
+	$(CC) $(CFLAGS) fileops.c
+
+stringops.o: stringops.c stringops.h fileops.h
+	$(CC) $(CFLAGS) stringops.c
+
+gopt.o: gopt.c gopt.h stringops.h fileops.h
+	$(CC) $(CFLAGS) gopt.c
+
+clean:
+	rm *.o %s
+</text>
