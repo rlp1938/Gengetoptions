@@ -1,0 +1,11 @@
+Recorded	2016-08-03				
+Program		optgen						
+Version		1.2
+Data file	????.xml	Whatever the maker called the master xml file.
+Bug Description
+From the master xml file:
+</helptext>
+	There is no escaped linefeed at end of this line.
+<helptext>
+The sample line shown does not print when --help is selected. A '\n'
+appended fixes the result so that is the work-around.
