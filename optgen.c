@@ -782,17 +782,24 @@ char *gettagdata_r(const char *opn, const char *cls,
 	* actual data.
 	* This deals with such a case.
 	*/
-	char line[PAGE];
+	char *line = NULL;
 	size_t tlen = strlen(opn);
 	char *op = memmem(fro, limit - fro, opn, tlen);
 	if (!op) tagerror(opn);	// will abort
 	char *clp = memmem(op, limit - op, cls, tlen+1);
 	if (!clp) tagerror(cls);	// will abort
 	op += tlen;
-	strncpy(line, op, clp - op);
-	line[clp - op] = 0;
-	if (strlen(line)) cleanuptext_r(line, line);
-	strcpy(out, line);
+	size_t buflen = clp - op;
+	if (buflen) {
+		line = docalloc(buflen + 1, 1, "gettagdata()");
+		strncpy(line, op, clp - op);
+		line[buflen] = 0;
+		cleanuptext_r(line, line);
+		strcpy(out, line);
+	} else {
+		strcpy(out, "");
+	}
+	if (line) free(line);
 	return out;
 } // gettagdata_r
 
@@ -823,6 +830,37 @@ void validatexml(const char *datafile)
 				datafile, lineno, "vname");
 		exit(EXIT_FAILURE);
 	}
+	
+	// check that no more options have been added after the closing tag.
+	lineno = 1;
+	char *cp = filedat.from;
+	while (1) {
+		char *el = memchr(cp, '\n', filedat.to - cp);
+		if (!el) {
+			el = filedat.to;
+		}
+		lineno++;
+		char *op = 
+				memmem(cp, el - cp, "</options>", strlen("</options>"));
+		if (op) {
+			op += 10;
+			char *extra = 
+						memmem(op, filedat.to - op, "<name>", 
+						strlen("<name>"));
+			if (extra) {
+				fprintf(stderr, "You have written options past "
+								"</options> tag at line: %d\n", lineno);
+				fprintf(stderr, "Please edit %s to put </options> tag "
+								"on the last line of the file.\n", 
+								datafile);
+				exit(EXIT_FAILURE);
+			} else {
+				break;	// this potential problem doesn't exist.
+			}
+		}
+		cp = el + 1;
+		if (cp > filedat.to) break;
+	}	// while(1)	
 	free(filedat.from);
 }  // validatexml()
 
