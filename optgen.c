@@ -836,11 +836,9 @@ void generatemakefile(char *xmlfile, const char *template)
 	strcpy(exefile, xmlfile);
 	char *ftyp = strstr(exefile, ".xml");
 	*ftyp = 0;
+	size_t fnlen = strlen(exefile);
 	const int numexrefs = 9;
-	size_t outlen = sd.to - sd.from + numexrefs * 31;
-	/* Anyone who wants the filename > 31 long is welcome to the
-	 * segfault.
-	*/
+	size_t outlen = sd.to - sd.from + numexrefs * fnlen;
 	char *outbuf = docalloc(outlen, 1, "generatemakefile");
 	/* Below: The alternative, doing it a line at a time, is even worse
 	 * IMO.
