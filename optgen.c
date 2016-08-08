@@ -99,8 +99,8 @@ static void groupsetwidth(const char *before, char *in,
 static void validatexml(const char *datafile);
 static bool testbyline(char *fro, char *to, char *maintag, char *vartag, 
 						int *lineno);
-static char *gettagdata_r(const char *opn, const char *cls, 
-						const char *fro, const char *limit, char *out);
+static char *gettagdata(const char *opn, const char *cls, 
+						const char *fro, const char *limit);
 static void maketags_r(const char *tagname, char * opntag, char *clstag);
 static void generatemakefile(char *xmlfile, const char *template);
 
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 	 * and also the generated main program. Hopefully, the validatexml
 	 * function will turn that situation into a doddle.
 	*/
-	validatexml(xmlfile);
+	validatexml(xmlfile);	// TODO validatexml() not catching errors
 	fdata mydat = readfile(xmlfile, 0, 1);
 
 	int gcount = counttags(mydat.from, mydat.to, "gname");
@@ -745,7 +745,7 @@ bool testbyline(char *fro, char *to, char *maintag, char *vartag,
 				int *lineno)
 {
 	char *lp = fro;
-	char mopn[LINE], mcls[LINE], vopn[LINE], vcls[LINE], line[PAGE];
+	char mopn[LINE], mcls[LINE], vopn[LINE], vcls[LINE];
 	maketags_r(maintag, mopn, mcls);
 	maketags_r(vartag, vopn, vcls);
 	int ln = 0;
@@ -757,16 +757,22 @@ bool testbyline(char *fro, char *to, char *maintag, char *vartag,
 		*lineno = ln;
 		char *ep = memchr(lp, '\n', to - lp);
 		if (!ep) ep = to;	// file has no '\n' at end
-		char *mtp = memmem(lp, ep - lp, mopn, molen);	// in line only
+		size_t llen = ep - lp;
+		char *mtp = memmem(lp, llen, mopn, molen);	// in line only
 		if (mtp) {
-			gettagdata_r(mopn, mcls, mtp, to, line);
+			char *line = gettagdata(mopn, mcls, mtp, to);
 			if (strlen(line)) {	// line == "" is fine, nothing to do
 				char *vp = memmem(mtp, to - mtp, vopn, volen);
-				gettagdata_r(vopn, vcls, vp, to, line);
+				char *sline = gettagdata(vopn, vcls, vp, to);
 				/* I have data between maintags but no data between 
 				 * vartags. This is the error I want to catch. */
-				if (!strlen(line)) return false;
+				if (!strlen(sline)) {
+					free(sline);
+					return false;
+				}
+				free(sline);
 			}
+			free(line);
 		}
 		lp = ep + 1;
 		if (lp > to) break;
@@ -774,8 +780,8 @@ bool testbyline(char *fro, char *to, char *maintag, char *vartag,
 	return true;
 } // testbyline()
 
-char *gettagdata_r(const char *opn, const char *cls, 
-					const char *fro, const char *limit, char *out)
+char *gettagdata(const char *opn, const char *cls, 
+					const char *fro, const char *limit)
 {	/* It is easy to have a pair of tags like this:
 	*	<sometag>\n\t\t</sometag>
 	* where there are many whitespace chars in between but no
@@ -783,6 +789,8 @@ char *gettagdata_r(const char *opn, const char *cls,
 	* This deals with such a case.
 	*/
 	char *line = NULL;
+	char *back = NULL;
+	char *ret;
 	size_t tlen = strlen(opn);
 	char *op = memmem(fro, limit - fro, opn, tlen);
 	if (!op) tagerror(opn);	// will abort
@@ -792,16 +800,17 @@ char *gettagdata_r(const char *opn, const char *cls,
 	size_t buflen = clp - op;
 	if (buflen) {
 		line = docalloc(buflen + 1, 1, "gettagdata()");
+		back = docalloc(buflen + 1, 1, "gettagdata()");
 		strncpy(line, op, clp - op);
-		line[buflen] = 0;
-		cleanuptext_r(line, line);
-		strcpy(out, line);
+		cleanuptext_r(line, back);
+		ret = dostrdup(back);
 	} else {
-		strcpy(out, "");
+		ret = dostrdup("");
 	}
 	if (line) free(line);
-	return out;
-} // gettagdata_r
+	if (back) free(back);
+	return ret;
+} // gettagdata
 
 void maketags_r(const char *tagname, char * opntag, char *clstag)
 {
