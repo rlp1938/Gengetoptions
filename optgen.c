@@ -53,6 +53,9 @@ static void gettagaddress(const char *tag, char *fro, char *to,
 							char *list[]);
 static void getvarsdata(char *fro, char *to, vars *vardat);
 static void getgvsdata(char *fro, char *to, govars_t *gvsdat);
+static void freegvsdata(govars_t *gvsdat);
+static void freevarsdata(vars *vardat);
+static void freeoptsdata(optdata_t *optdat);
 
 static char *getdatabytag(const char *opn, const char *cls,
 							char *fro, char *to);
@@ -172,6 +175,16 @@ int main(int argc, char **argv)
 	writefixeddata(mainprog, "~/.config/genxml/main_c.xml");
 	generatemakefile(xmlfile, "~/.config/genxml/makefile.xml");
 	free(xmlfile);
+	for (i = 0; i < gcount; i++) {
+		freegvsdata(&gvs[i]);
+	}
+	for (i = 0; i < vcount; i++) {
+		freevarsdata(&vdat[i]);
+	}
+	for (i = 0; i < ocount; i++) {
+		freeoptsdata(&optdat[i]);
+	}
+	free(mydat.from);
 	return 0;
 }//main()
 
@@ -227,39 +240,39 @@ void gettagaddress(const char *tag, char *fro, char *to, char *list[])
 void getgvsdata(char *fro, char *to, govars_t *gvsdat)
 {   // I know the tag names.
 	char *res = getdatabytag("<gname>", "</gname>", fro, to);
-	gvsdat->gname = dostrdup(res);
+	gvsdat->gname = res;
 	res = getdatabytag("<type>", "</type>", fro, to);
-	gvsdat->type = dostrdup(res);
+	gvsdat->type = res;
 	res = getdatabytag("<default>", "</default>", fro, to);
-	gvsdat->deflt = dostrdup(res);
+	gvsdat->deflt = res;
 } // getgvsdata()
 
 void getvarsdata(char *fro, char *to, vars *vardat)
 {   // I know the tag names.
 	char *res = getdatabytag("<vname>", "</vname>", fro, to);
-	vardat->vname = dostrdup(res);
+	vardat->vname = res;
 	res = getdatabytag("<type>", "</type>", fro, to);
-	vardat->type = dostrdup(res);
+	vardat->type = res;
 	res = getdatabytag("<default>", "</default>", fro, to);
-	vardat->deflt = dostrdup(res);
+	vardat->deflt = res;
 	return;
 } // getvarsdata()
 
 void getoptsdata(char *fro, char *to, optdata_t *optdat, int index)
 {   // tags: shortname, longname, code, optarg, helptext
 	char *res = getdatabytag("<shortname>", "</shortname>", fro, to);
-	optdat->shortname = dostrdup(res);
+	optdat->shortname = res;
 	res = getdatabytag("<longname>", "</longname>", fro, to);
-	optdat->longname = dostrdup(res);
+	optdat->longname = res;
 	res = getdatabytag("<code>", "</code>", fro, to);
-	optdat->code = dostrdup(res);
+	optdat->code = res;
 	res = getdatabytag("<optarg>", "</optarg>", fro, to);
-	optdat->optarg = dostrdup(res);
+	optdat->optarg = res;
 	res = getdatabytag("<helptext>", "</helptext>", fro, to);
-	optdat->helptext = dostrdup(res);
+	optdat->helptext = res;
 	if (index == 0) {   // tag only exists for section HELP
 		res = getdatabytag("<synopsis>", "</synopsis>", fro, to);
-		optdat->synopsis = dostrdup(res);
+		optdat->synopsis = res;
 	} else {
 		optdat->synopsis = dostrdup("");
 	}
@@ -273,9 +286,9 @@ void tagerror(const char *tag)
 
 char *getdatabytag(const char *opn, const char *cls, char *fro,
 						char *to)
-{
-	static char buf[PAGE];  // useable for optdata_t as well as vars
-	char wrk [PAGE];
+{	/* build buffers on heap and stop fretting about over-runs */
+	char *buf;  // useable for optdata_t as well as vars
+	char *wrk;
 	size_t len = strlen(opn);
 	char *cp = fro; // begin all searches from the top of the group.
 	cp = memmem(cp, to - cp, opn, len);
@@ -286,12 +299,15 @@ char *getdatabytag(const char *opn, const char *cls, char *fro,
 		tagerror(cls);
 	}
 	size_t dlen = clcp - cp;
+	buf = docalloc(dlen+1, 1, "gettagbyname");
+	wrk = docalloc(dlen+1, 1, "gettagbyname");
 	strncpy(wrk, cp, dlen);
 	wrk[dlen] = '\0';   // get rid of any trailing tab
 	if(wrk[dlen-1] == '\t') wrk[dlen-1] = '\0';
 	char *wp = wrk;
 	while(*wp == '\n') wp++;    // remove leading '\n' but keep '\t'.
 	strcpy(buf, wp);
+	free(wrk);
 	return buf;
 } // getdatabytag()
 
@@ -301,6 +317,11 @@ void init3files(char *xmlfile)
 	char **cfg = readcfg("~/.config/genxml/ggoconfig");
 	char *user = getcfgvalue("user", cfg);
 	char *email = getcfgvalue("email", cfg);
+	int i = 0;
+	while (cfg[i]) {
+		free(cfg[i]);
+		i++;
+	}
 	free(cfg);
 	char *pt = get_realpath_home("~/.config/genxml/pagetop.xml");
 	fdata mydat = readfile(pt, 0, 1);
@@ -317,6 +338,9 @@ void init3files(char *xmlfile)
 	mainprog = cfilefromxml(xmlfile);
 	writeinitfile(mainprog, user, yy, email, hl1, hl2,
 					"#include \"gopt.h\"", sd.from);
+	free(email);
+	free(user);
+	free(mydat.from);
 } // init3files()
 
 char *getthisyear(void)
@@ -423,6 +447,7 @@ void writefixeddata(const char *optsfile, const char *datafile)
 	fdata mydat = readfile(xmlfile, 0, 1);
 	strdata sd = getdatafromtagnames(mydat.from, mydat.to, "text");
 	writefile(optsfile, sd.from, sd.to, "a");
+	free(mydat.from);
 } // writefixeddata()
 
 void writelongoptlines(const char *optsfile, optdata_t optdat[],
@@ -896,3 +921,26 @@ void generatemakefile(char *xmlfile, const char *template)
 	free(outbuf);
 	free(mydat.from);
 } // generatemakefile()
+
+void freegvsdata(govars_t *gvsdat)
+{
+	free(gvsdat->deflt);
+	free(gvsdat->gname);
+	free(gvsdat->type);
+} // freegvsdata()
+
+void freevarsdata(vars *vardat)
+{
+	free(vardat->deflt);
+	free(vardat->type);
+	free(vardat->vname);
+} // freegvsdata()
+void freeoptsdata(optdata_t *optdat)
+{
+	free(optdat->code);
+	free(optdat->helptext);
+	free(optdat->longname);
+	free(optdat->optarg);
+	free(optdat->shortname);
+	free(optdat->synopsis);
+} // freeoptsdata()
