@@ -192,7 +192,8 @@ static int counttags(char *fro, char *to, const char *tag)
 {
 	int count = 0;
 	char *cp = fro;
-	char opn[LINE], cls[LINE];
+	char opn[LINE], cls[LINE];	/* will not bother putting these on the
+									heap */
 	sprintf(opn, "<%s>", tag);
 	sprintf(cls, "</%s>", tag);
 	size_t taglen = strlen(opn);
@@ -225,7 +226,7 @@ void gettagaddress(const char *tag, char *fro, char *to, char *list[])
 {
 	int i = 0;
 	char *cp = fro;
-	char opn[LINE];
+	char opn[LINE];	// not on the heap
 	sprintf(opn, "<%s>", tag);
 	size_t tlen = strlen(opn);
 	while (cp < to) {
@@ -475,7 +476,7 @@ void writelongoptlines(const char *optsfile, optdata_t optdat[],
 		}
 		strcat(buf, line);
 	}
-	strcat(buf, "\t\t{0,\t0,\t0,\t0 }\n\t\t\t};\n");
+	strcat(buf, "\t\t{0,\t0,\t0,\t0 }\n\t\t};\n");
 	bufferguard(buf, "writelongoptlines");
 	writefile(optsfile, buf, NULL, "a");
 } // writelongoptlines()
@@ -490,15 +491,26 @@ void writeoptionsprocessing(const char *optsfile, optdata_t optdat[],
 static void gatherhelptext(const char *optsfile, optdata_t optdat[],
 							const int ocount)
 {
-	char buf[PAGE];
+	char *buf;
 	int i;
+	size_t bs = 0;
+	// Estimate size needed by buf;
+	for (i = 0; i < ocount; i++) {
+		bs += 40;	// allow for option names
+		bs += strlen(optdat[i].helptext);
+	}
+	bs += LINE;	// leave room for helptext to grow when grouped.
+	buf = docalloc(bs, 1, "gatherhelptext()");
 	optdata_t localopts;
 	buf[0] = '\0';
 	writefile(optsfile, "\thelptext =\n", NULL, "a");
 	for (i = 0; i < ocount; i++) {
-		char line[PAGE];
+		char *line, *helptext;
+		size_t ls;
 		localopts = optdat[i];
-		char helptext[PAGE];
+		ls = strlen(localopts.helptext) + LINE;
+		helptext = docalloc(ls, 1, "gatherhelptext()");
+		line = docalloc(ls + 40, 1, "gatherhelptext()");
 		group(localopts.helptext, helptext);
 		char *fmt;
 		if (strlen(localopts.shortname) && strlen(localopts.longname)) {
@@ -513,10 +525,12 @@ static void gatherhelptext(const char *optsfile, optdata_t optdat[],
 			sprintf(line, fmt, localopts.longname, helptext);
 		}
 		strcat(buf, line);
+		free(line);
+		free(helptext);
 	}
 	strcat(buf, "  ;\n");
-	bufferguard(buf, "gatherhelptext");
 	writefile(optsfile, buf, NULL, "a");
+	free(buf);
 } // gatherhelptext()
 
 void writelongoptions(const char *optsfile, optdata_t optdat[],
