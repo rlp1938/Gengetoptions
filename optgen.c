@@ -536,25 +536,40 @@ static void gatherhelptext(const char *optsfile, optdata_t optdat[],
 void writelongoptions(const char *optsfile, optdata_t optdat[],
 								const int ocount)
 {
-	char buf[PAGE];
-	optdata_t localopts;
-	strcpy(buf, "\t\tcase 0:\n\t\t\tswitch (option_index) {\n");
+	char *buf;
+	// caculate buffer sizes
 	int i;
+	size_t ls, bs;
+	ls = 0;
+	bs = LINE;	// plenty breathing room
 	for (i = 0; i < ocount; i++) {
-		localopts = optdat[i];
-		char line[LINE];
+		optdata_t localopts = optdat[i];
 		if (strlen(localopts.shortname) == 0) {
+			ls += 30 + 32;	// 32 arbitrary breathing room.
+			ls += strlen(localopts.code);
+		}
+		
+	}
+	bs += ls;	// which may be 0.
+	buf = docalloc(bs, 1, "writelongoptions()");
+	strcpy(buf, "\t\tcase 0:\n\t\t\tswitch (option_index) {\n");
+	for (i = 0; i < ocount; i++) {
+		optdata_t localopts = optdat[i];
+		if (strlen(localopts.shortname) == 0) {
+			char *line;
+			line = docalloc(ls, 1, "writelongoptions()");
 			sprintf(line, "\t\t\tcase %d:\n", i);
 			strcat(buf, line);
 			reformatcode(localopts.code, line, 1);
 			strcat(buf, line);
 			strcpy(line, "\t\t\tbreak;\n");
 			strcat(buf, line);
+			free(line);
 		}
 	} // for()
 	strcat(buf, "\t\t\t} // switch()\n\t\tbreak;\n");
-	bufferguard(buf, "writelongoptions");
 	writefile(optsfile, buf, NULL, "a");
+	free(buf);
 } // writelongoptions()
 
 void writeshortoptions(const char *optsfile, optdata_t optdat[],
@@ -658,7 +673,7 @@ void bufferguard(const char *buf, const char *where)
 	size_t pct = pctd;
 	if (pct >= 50) {
 		fprintf(stderr, "Buffer is %lu per cent full at function %s.\n",
-					pct, where);
+					(unsigned long)pct, where);
 	}
 } // bufferguard()
 
