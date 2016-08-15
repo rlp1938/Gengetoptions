@@ -107,7 +107,6 @@ static char *gettagdata(const char *opn, const char *cls,
 static void maketags_r(const char *tagname, char * opntag, char *clstag);
 static void generatemakefile(char *xmlfile, const char *template);
 
-
 int main(int argc, char **argv)
 {
 	if (argc < 2) {
@@ -455,12 +454,20 @@ void writelongoptlines(const char *optsfile, optdata_t optdat[],
 						const int ocount)
 {
 	char *fmt = "\t\t{\"%s\",\t%s,\t%s,\t%s },\n";
-	char buf[PAGE];
-	buf[0] = '\0';
-	optdata_t localopts;
+	char *buf;
+	size_t bs = 0;
 	int i;
 	for (i = 0; i < ocount; i++) {
-		char line[LINE];
+		bs += strlen(fmt)/* fixed */ + 32 /*safety*/
+				+ strlen(optdat[i].longname);
+	}
+	
+	buf = docalloc(bs + 32, 1, "writelongoptlines()");
+	buf[0] = '\0';
+	optdata_t localopts;
+	for (i = 0; i < ocount; i++) {
+		size_t ls = strlen(fmt) + 32 + strlen(optdat[i].longname);
+		char *line = docalloc(ls, 1, "writelongoptlines()");
 		localopts = optdat[i];
 		if (strlen(localopts.longname)) {
 			char snbuf[8];
@@ -473,12 +480,15 @@ void writelongoptlines(const char *optsfile, optdata_t optdat[],
 			}
 			sprintf(line, fmt, localopts.longname, localopts.optarg,
 						"0", snbuf);
+		
 		}
 		strcat(buf, line);
+		free(line);
 	}
 	strcat(buf, "\t\t{0,\t0,\t0,\t0 }\n\t\t};\n");
 	bufferguard(buf, "writelongoptlines");
 	writefile(optsfile, buf, NULL, "a");
+	free(buf);
 } // writelongoptlines()
 
 void writeoptionsprocessing(const char *optsfile, optdata_t optdat[],
@@ -575,24 +585,31 @@ void writelongoptions(const char *optsfile, optdata_t optdat[],
 void writeshortoptions(const char *optsfile, optdata_t optdat[],
 								const int ocount)
 {
-	char buf[PAGE];
-	buf[0] = '\0';
-	optdata_t localopts;
+	char *buf;
+	size_t blen = 0;
 	int i;
 	for (i = 0; i < ocount; i++) {
+		blen += 32 + 32 + strlen(optdat[i].code);
+	}
+	buf = docalloc(blen, 1, "writeshortoptions()");
+	buf[0] = '\0';
+	optdata_t localopts;
+	for (i = 0; i < ocount; i++) {
 		localopts = optdat[i];
-		char line[LINE];
 		if (strlen(localopts.shortname)) {
+			size_t llen = 32 + 32 + strlen(localopts.code);
+			char *line = docalloc(llen, 1, "writeshortoptions()");
 			sprintf(line, "\t\tcase '%s':\n", localopts.shortname);
 			strcat(buf, line);
 			reformatcode(localopts.code, line, 0);
 			strcat(buf, line);
 			strcpy(line, "\t\tbreak;\n");
 			strcat(buf, line);
+			free(line);
 		}
 	} // for()
-	bufferguard(buf, "writeshortoptions");
 	writefile(optsfile, buf, NULL, "a");
+	free(buf);
 } // writeshortoptions()
 
 void setgvsdefaults(const char *optsfile, govars_t  gvs[],
@@ -740,7 +757,15 @@ void cleanuptext_r(char *in, char *out)
 void group(char *in, char *out)
 {	/* take an arbitrary string and break it into pieces at a space,
 	72 chars long or less. Wrap the strings in '  " .. data .. \n"' */
-	char buf[PAGE], wrk[PAGE], line[LINE];
+	/* my buffer sizes will be over estimated because the linefeeds are
+	 * already in the strlen count, as are the forced \\n. No matter,
+	 * the grouping is going to shorten the lines, hence use extra
+	 * line ends.
+	*/
+	char *buf, *wrk;
+	size_t bsize = strlen(in) + LINE;	// input will grow somewhat;
+	buf = docalloc(bsize, 1, "group()");
+	wrk = docalloc(bsize, 1, "group()");
 	char *cp, *lf;
 	const char *before = "  \"\\t";
 	const char *after = "\\n\"\n";
@@ -751,6 +776,7 @@ void group(char *in, char *out)
 	cleanuptext_r(wrk, wrk);
 	cp = wrk;
 	lf = strstr(cp, mustbreak);
+	char line[PAGE];
 	buf[0] = 0;	// buf is the formatted result. Cat everything on to it.
 	while (lf) {
 		*lf = 0;
