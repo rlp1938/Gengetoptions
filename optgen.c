@@ -20,6 +20,7 @@
 
 #include "fileops.h"
 #include "stringops.h"
+#include <malloc.h>
 #define PAGE PATH_MAX
 #define LINE NAME_MAX
 
@@ -425,7 +426,7 @@ void initoptstring(const char *optsfile, optdata_t optdat[],
 void setovdefaults(const char *optsfile, vars  vs[], const int nvs)
 {
 	char buf[PAGE];
-	strcpy(buf, "\n\t/* set up defaults for opt vars. */\n");
+	strcpy(buf, "\n\t/* set up defaults for opts vars. */\n");
 	strcat(buf, "\toptions_t opts;\n");
 	int i;
 	for (i = 0; i < nvs; i++) {
@@ -615,25 +616,40 @@ void writeshortoptions(const char *optsfile, optdata_t optdat[],
 void setgvsdefaults(const char *optsfile, govars_t  gvs[],
 							const int ngs)
 {
-	char buf[PAGE];
+	char *buf;
 	int i;
+	size_t bs = 0;
+	for (i = 0; i < ngs; i++) {
+		bs += strlen(gvs[i].deflt);
+		bs += strlen(gvs[i].gname);
+		bs += strlen(gvs[i].type);
+		bs += 16;	// format chars + safety
+	}
 	// Write comment first
-	strcpy(buf, "\n\t/* declare and set defaults for local variables."
-				" */\n");
+	char *cmnt = 
+	"\n\t/* declare and set defaults for local variables. */\n";
+	bs += strlen(cmnt) +1;	// needed +1 when ngs is 0
+	buf = docalloc(bs, 1, "setgvsdefaults()");
+	strcpy(buf, cmnt);
 	govars_t localgvs;
 	for (i = 0; i < ngs; i++) {
-		char line[LINE];
-		char *fmt = "\t%s %s\n\t%s\n";
+		char *line;
+		char *fmt = "\t%s %s;\n\t%s\n";
 		localgvs = gvs[i];
 		char typ[LINE], gname[LINE], deflt[LINE];
 		stripspace_r(localgvs.type, typ);
 		stripspace_r(localgvs.gname, gname);
 		stripspace_r(localgvs.deflt, deflt);
+		size_t ls = strlen(typ) + strlen(gname) + strlen(deflt) +
+					strlen(fmt) + 8;
+		line = docalloc(ls, 1, "setgvsdefaults()");
 		sprintf(line, fmt, typ, gname, deflt);
 		strcat(buf, line);
+		free(line);
 	}
 	bufferguard(buf, "setgvsdefaults");
 	writefile(optsfile, buf, NULL, "a");
+	free(buf);
 } // setgvsdefaults()
 
 void stripspace_r(char *stripfrom, char *result)
@@ -795,6 +811,8 @@ void group(char *in, char *out)
 		sprintf(line, fmt, before, cp, after);
 	}
 	strcpy(out, buf);
+	free(wrk);
+	free(buf);
 } // group()
 
 void groupsetwidth(const char *before, char *in, const char *after,
